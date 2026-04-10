@@ -12,7 +12,9 @@ import {
   Check,
   Trash2,
   User,
+  CalendarPlus,
 } from "lucide-react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
@@ -177,6 +179,22 @@ export default function PatientDashboardPage() {
           </h2>
           <p className="text-gray-500 mt-1">{l.subtitle}</p>
         </div>
+
+        {/* Book Appointment Button */}
+        <Link
+          href="/book-appointment"
+          className="mb-6 block bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary/10 group-hover:bg-primary rounded-xl flex items-center justify-center transition-colors">
+              <CalendarPlus className="w-6 h-6 text-primary group-hover:text-white transition-colors" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">{t("booking").title}</p>
+              <p className="text-xs text-gray-400">{t("booking").subtitle}</p>
+            </div>
+          </div>
+        </Link>
 
         {/* Progress */}
         {totalCount > 0 && (

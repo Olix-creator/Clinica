@@ -8,7 +8,7 @@ CREATE TABLE public.users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clerk_id TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('doctor', 'patient')),
+  role TEXT NOT NULL CHECK (role IN ('doctor', 'patient', 'receptionist', 'admin')),
   full_name TEXT NOT NULL,
   phone TEXT,
   avatar_url TEXT,

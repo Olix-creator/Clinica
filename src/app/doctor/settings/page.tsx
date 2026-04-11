@@ -1,5 +1,4 @@
 import { requireDoctor } from "@/lib/auth/sync-user";
-import { createClient } from "@/lib/supabase/server";
 import SettingsClient from "@/components/settings/SettingsClient";
 
 export default async function SettingsPage() {
@@ -9,6 +8,7 @@ export default async function SettingsPage() {
     <SettingsClient
       user={userData}
       doctor={doctorData}
+      userRole="doctor"
     />
   );
 }

@@ -123,3 +123,13 @@ export async function requirePatient() {
 
   return { user, patient: patientData };
 }
+
+export async function requireReceptionist() {
+  const { user } = await getOrCreateSupabaseUser();
+
+  if (user.role !== "receptionist" && user.role !== "admin") {
+    redirect("/dashboard");
+  }
+
+  return { user };
+}

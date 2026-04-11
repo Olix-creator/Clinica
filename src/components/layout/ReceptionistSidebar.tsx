@@ -6,54 +6,51 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  SquarePlus,
-  Clock,
+  Calendar,
+  Bell,
   Settings,
   Briefcase,
   LogOut,
   Menu,
   X,
-  Calendar,
-  Bell,
+  UserPlus,
 } from "lucide-react";
 import { useState } from "react";
 import { SignOutButton } from "@clerk/nextjs";
 import { useI18n } from "@/lib/i18n/context";
 
-interface DoctorSidebarProps {
-  doctorName: string;
-  specialty: string;
+interface ReceptionistSidebarProps {
+  userName: string;
   avatarUrl?: string | null;
 }
 
-export default function DoctorSidebar({ doctorName, specialty }: DoctorSidebarProps) {
+export default function ReceptionistSidebar({ userName }: ReceptionistSidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useI18n();
   const nav = t("nav");
 
   const navItems = [
-    { href: "/doctor/dashboard", label: nav.dashboard, icon: LayoutDashboard },
-    { href: "/doctor/appointments", label: nav.appointments, icon: CalendarDays },
-    { href: "/doctor/patients", label: nav.patients, icon: Users },
-    { href: "/doctor/calendar", label: "Calendar", icon: Calendar },
-    { href: "/doctor/queue", label: nav.queue, icon: SquarePlus },
-    { href: "/doctor/history", label: nav.history, icon: Clock },
-    { href: "/doctor/notifications", label: "Messages", icon: Bell },
+    { href: "/reception/dashboard", label: nav.dashboard, icon: LayoutDashboard },
+    { href: "/reception/appointments", label: nav.appointments, icon: CalendarDays },
+    { href: "/reception/patients", label: nav.patients, icon: Users },
+    { href: "/reception/register", label: "Register Patient", icon: UserPlus },
+    { href: "/reception/calendar", label: "Calendar", icon: Calendar },
+    { href: "/reception/notifications", label: "Notifications", icon: Bell },
   ];
 
   const sidebarContent = (
     <>
       {/* Logo */}
       <div className="p-6">
-        <Link href="/doctor/dashboard" className="flex items-center gap-2">
+        <Link href="/reception/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Briefcase className="w-4 h-4 text-white" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-primary leading-none">Clinica</h1>
             <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
-              {nav.medicalPortal}
+              Reception
             </p>
           </div>
         </Link>
@@ -87,10 +84,10 @@ export default function DoctorSidebar({ doctorName, specialty }: DoctorSidebarPr
       {/* Settings */}
       <div className="px-3 mb-4">
         <Link
-          href="/doctor/settings"
+          href="/reception/settings"
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-            pathname === "/doctor/settings"
+            pathname === "/reception/settings"
               ? "text-primary bg-primary/5"
               : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           }`}
@@ -100,19 +97,19 @@ export default function DoctorSidebar({ doctorName, specialty }: DoctorSidebarPr
         </Link>
       </div>
 
-      {/* Doctor Profile */}
+      {/* User Profile */}
       <div className="px-3 pb-4 border-t border-gray-100 pt-4">
         <div className="flex items-center gap-3 px-3">
-          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
-            {doctorName
+          <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-sm font-semibold text-teal-700">
+            {userName
               .split(" ")
               .map((n) => n[0])
               .join("")
               .slice(0, 2)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{doctorName}</p>
-            <p className="text-xs text-gray-500 truncate">{specialty}</p>
+            <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
+            <p className="text-xs text-gray-500 truncate">Receptionist</p>
           </div>
           <SignOutButton redirectUrl="/sign-in">
             <button type="button" className="text-gray-400 hover:text-gray-600" title="Logout">

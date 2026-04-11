@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Briefcase, Stethoscope, User, Loader2 } from "lucide-react";
+import { Briefcase, Stethoscope, User, Loader2, ClipboardList } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ChooseRolePage() {
@@ -34,7 +34,7 @@ export default function ChooseRolePage() {
       });
   }, [user, router]);
 
-  async function selectRole(role: "doctor" | "patient") {
+  async function selectRole(role: "doctor" | "patient" | "receptionist") {
     if (!user) return;
     setLoading(role);
 
@@ -52,7 +52,9 @@ export default function ChooseRolePage() {
       if (error) throw error;
 
       if (role === "doctor") {
-        router.push("/doctor-dashboard");
+        router.push("/doctor/dashboard");
+      } else if (role === "receptionist") {
+        router.push("/reception/dashboard");
       } else {
         router.push("/onboarding");
       }
@@ -83,39 +85,56 @@ export default function ChooseRolePage() {
         </div>
 
         {/* Role cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Doctor */}
           <button
             onClick={() => selectRole("doctor")}
             disabled={!!loading}
-            className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-primary p-8 text-center transition-all hover:shadow-xl hover:shadow-primary/10 active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-primary p-6 text-center transition-all hover:shadow-xl hover:shadow-primary/10 active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <div className="w-16 h-16 mx-auto bg-blue-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
+            <div className="w-14 h-14 mx-auto bg-blue-50 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-primary/10 transition-colors">
               {loading === "doctor" ? (
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <Loader2 className="w-7 h-7 animate-spin text-primary" />
               ) : (
-                <Stethoscope className="w-8 h-8 text-primary" />
+                <Stethoscope className="w-7 h-7 text-primary" />
               )}
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">I am a Doctor</h3>
-            <p className="text-sm text-gray-500">Manage patients and appointments</p>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Doctor</h3>
+            <p className="text-xs text-gray-500">Manage patients</p>
+          </button>
+
+          {/* Receptionist */}
+          <button
+            onClick={() => selectRole("receptionist")}
+            disabled={!!loading}
+            className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-teal-500 p-6 text-center transition-all hover:shadow-xl hover:shadow-teal-500/10 active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            <div className="w-14 h-14 mx-auto bg-teal-50 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-teal-500/10 transition-colors">
+              {loading === "receptionist" ? (
+                <Loader2 className="w-7 h-7 animate-spin text-teal-500" />
+              ) : (
+                <ClipboardList className="w-7 h-7 text-teal-600" />
+              )}
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Receptionist</h3>
+            <p className="text-xs text-gray-500">Book appointments</p>
           </button>
 
           {/* Patient */}
           <button
             onClick={() => selectRole("patient")}
             disabled={!!loading}
-            className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-green-500 p-8 text-center transition-all hover:shadow-xl hover:shadow-green-500/10 active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-green-500 p-6 text-center transition-all hover:shadow-xl hover:shadow-green-500/10 active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <div className="w-16 h-16 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-green-500/10 transition-colors">
+            <div className="w-14 h-14 mx-auto bg-green-50 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-green-500/10 transition-colors">
               {loading === "patient" ? (
-                <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+                <Loader2 className="w-7 h-7 animate-spin text-green-500" />
               ) : (
-                <User className="w-8 h-8 text-green-600" />
+                <User className="w-7 h-7 text-green-600" />
               )}
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">I am a Patient</h3>
-            <p className="text-sm text-gray-500">Book visits and manage health</p>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Patient</h3>
+            <p className="text-xs text-gray-500">Manage health</p>
           </button>
         </div>
       </div>

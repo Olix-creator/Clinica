@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/lib/i18n/context";
+import { AuthProvider } from "@/lib/auth/auth-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,15 +24,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" className={`${inter.variable} h-full antialiased`}>
-        <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
+        <AuthProvider>
           <I18nProvider>
             {children}
           </I18nProvider>
-          <Toaster position="top-right" richColors />
-        </body>
-      </html>
-    </ClerkProvider>
+        </AuthProvider>
+        <Toaster position="top-right" richColors />
+      </body>
+    </html>
   );
 }

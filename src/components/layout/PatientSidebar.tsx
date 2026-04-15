@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { SignOutButton } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/auth-context";
 import { useI18n } from "@/lib/i18n/context";
 
 interface PatientSidebarProps {
@@ -26,6 +26,7 @@ export default function PatientSidebar({ patientName }: PatientSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useI18n();
   const nav = t("nav");
+  const { signOut } = useAuth();
 
   const navItems = [
     { href: "/patient/dashboard", label: nav.dashboard, icon: LayoutDashboard },
@@ -87,11 +88,9 @@ export default function PatientSidebar({ patientName }: PatientSidebarProps) {
             <p className="text-sm font-medium text-gray-900 truncate">{patientName}</p>
             <p className="text-xs text-gray-500">Patient</p>
           </div>
-          <SignOutButton redirectUrl="/sign-in">
-            <button type="button" className="text-gray-400 hover:text-gray-600" title="Logout">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </SignOutButton>
+          <button type="button" onClick={signOut} className="text-gray-400 hover:text-gray-600 cursor-pointer" title="Logout">
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </>

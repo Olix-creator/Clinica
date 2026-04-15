@@ -1,34 +1,62 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-export async function getCurrentUserId(): Promise<string> {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Not authenticated");
-
+/**
+ * Get the currently authenticated Supabase Auth user.
+ * Throws if not logged in.
+ */
+export async function getAuthUser() {
   const supabase = await createClient();
-  const { data: user } = await supabase
-    .from("users")
-    .select("id")
-    .eq("clerk_id", userId)
-    .single();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (!user) throw new Error("User not found in database");
-  return user.id;
+  if (error || !user) {
+    throw new Error("Not authenticated");
+  }
+  return user;
 }
 
-export async function getCurrentUserWithRole() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Not authenticated");
-
+/**
+ * Get the current user's database row from the `users` table.
+ * Redirects to /login if not authenticated.
+ */
+export async function getCurrentUser() {
   const supabase = await createClient();
-  const { data: user } = await supabase
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) redirect("/login");
+
+  const { data: dbUser } = await supabase
     .from("users")
     .select("*")
-    .eq("clerk_id", userId)
+    .eq("id", authUser.id)
     .single();
 
-  return user;
+  return dbUser;
+}
+
+/**
+ * Get user with role. Returns null if no DB user found.
+ */
+export async function getCurrentUserWithRole() {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) return null;
+
+  const { data: dbUser } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", authUser.id)
+    .single();
+
+  return dbUser;
 }

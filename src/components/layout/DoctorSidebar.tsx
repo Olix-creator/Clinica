@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { SignOutButton } from "@clerk/nextjs";
+import { useAuth } from "@/lib/auth/auth-context";
 import { useI18n } from "@/lib/i18n/context";
 
 interface DoctorSidebarProps {
@@ -29,6 +29,7 @@ export default function DoctorSidebar({ doctorName, specialty }: DoctorSidebarPr
   const [mobileOpen, setMobileOpen] = useState(false);
   const { t } = useI18n();
   const nav = t("nav");
+  const { signOut } = useAuth();
 
   const navItems = [
     { href: "/doctor/dashboard", label: nav.dashboard, icon: LayoutDashboard },
@@ -110,11 +111,9 @@ export default function DoctorSidebar({ doctorName, specialty }: DoctorSidebarPr
             <p className="text-sm font-medium text-gray-900 truncate">{doctorName}</p>
             <p className="text-xs text-gray-500 truncate">{specialty}</p>
           </div>
-          <SignOutButton redirectUrl="/sign-in">
-            <button type="button" className="text-gray-400 hover:text-gray-600" title="Logout">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </SignOutButton>
+          <button type="button" onClick={signOut} className="text-gray-400 hover:text-gray-600 cursor-pointer" title="Logout">
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </>

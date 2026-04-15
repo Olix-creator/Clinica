@@ -1,28 +1,19 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function updateProfile(formData: FormData) {
-  const { userId: clerkId } = await auth();
-  if (!clerkId) return { error: "Not authenticated" };
-
   const supabase = await createClient();
-
-  const { data: user } = await supabase
-    .from("users")
-    .select("id")
-    .eq("clerk_id", clerkId)
-    .single();
-
-  if (!user) return { error: "User not found" };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
 
   const fullName = formData.get("full_name") as string;
   const phone = formData.get("phone") as string;
   const specialty = formData.get("specialty") as string;
   const clinicName = formData.get("clinic_name") as string;
 
+  // Update users table
   const { error: userError } = await supabase
     .from("users")
     .update({ full_name: fullName, phone })
@@ -30,6 +21,7 @@ export async function updateProfile(formData: FormData) {
 
   if (userError) return { error: userError.message };
 
+  // Update doctors table
   const { error: doctorError } = await supabase
     .from("doctors")
     .update({ specialty, clinic_name: clinicName })
@@ -43,7 +35,6 @@ export async function updateProfile(formData: FormData) {
 }
 
 export async function changePassword(_newPassword: string) {
-  // Password management is now handled by Clerk
-  // Users should change their password through Clerk's user profile
-  return { error: "Password changes are managed through your account settings. Click on your profile to change your password." };
+  // Password changes handled via Supabase Auth
+  return { error: "Password changes are managed through your account settings." };
 }

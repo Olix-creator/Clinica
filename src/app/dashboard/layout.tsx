@@ -1,29 +1,26 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
-
-  // Check if user has a profile
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // Check profiles table for role
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", userId)
+    .eq("id", user.id)
     .single();
 
-  if (!profile) {
-    redirect("/choose-role");
-  }
+  if (!profile) redirect("/choose-role");
 
-  // Redirect to role-specific dashboard
-  if (profile.role === "doctor") {
-    redirect("/doctor-dashboard");
-  } else {
-    redirect("/patient-dashboard");
-  }
+  if (profile.role === "doctor") redirect("/doctor-dashboard");
+  if (profile.role === "receptionist") redirect("/receptionist-dashboard");
+  redirect("/patient-dashboard");
 
   return <>{children}</>;
 }

@@ -76,23 +76,19 @@ export default function LoginPage() {
     setLoading(false);
   }
 
-  async function handleGoogleAuth() {
+  function handleGoogleAuth() {
     setGoogleLoading(true);
     setError("");
-    const supabase = createClient();
-
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "custom:google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
-      },
+    // Route directly through our Edge Function — no Supabase provider config needed
+    const params = new URLSearchParams({
+      client_id: "35747672771-j771sf9s3j1l1ocb7ae7jmo8028710rt.apps.googleusercontent.com",
+      redirect_uri: "https://iqwgypqjtmuzbczewybu.supabase.co/functions/v1/google-auth",
+      response_type: "code",
+      scope: "openid email profile",
+      access_type: "online",
+      prompt: "select_account",
     });
-
-    if (oauthError) {
-      console.error("[Clinica] Google auth error:", oauthError);
-      setError(oauthError.message);
-      setGoogleLoading(false);
-    }
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
   return (

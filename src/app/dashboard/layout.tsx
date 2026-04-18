@@ -18,8 +18,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!profile) redirect("/choose-role");
 
-  if (profile.role === "doctor") redirect("/doctor-dashboard");
+  // Route to role-appropriate dashboard
+  if (profile.role === "doctor") redirect("/doctor/dashboard");
   if (profile.role === "receptionist") redirect("/receptionist-dashboard");
+  // Patient default
   redirect("/patient-dashboard");
 
   return <>{children}</>;

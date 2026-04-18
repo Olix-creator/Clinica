@@ -1,11 +1,13 @@
+"use server";
+
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 /**
- * Ensures the authenticated Supabase user has a row in the `users` table.
- * Creates one with default role = "patient" if missing.
+ * Gets the authenticated Supabase user + their profile row.
+ * Redirects to /login if not authenticated, /choose-role if no profile.
  */
-export async function getOrCreateSupabaseUser() {
+export async function getAuthUserWithProfile() {
   const supabase = await createClient();
 
   const {
@@ -14,121 +16,108 @@ export async function getOrCreateSupabaseUser() {
 
   if (!authUser) redirect("/login");
 
-  // Check if user already exists in the users table
-  const { data: existingUser } = await supabase
-    .from("users")
-    .select("*")
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, name, phone")
     .eq("id", authUser.id)
     .single();
 
-  if (existingUser) {
-    return { user: existingUser, authUser };
-  }
+  if (!profile) redirect("/choose-role");
 
-  // First user = admin, everyone else = patient
-  const { count } = await supabase
-    .from("users")
-    .select("id", { count: "exact", head: true });
-
-  const role: string = (count ?? 0) === 0 ? "admin" : "patient";
-
-  const fullName =
+  const displayName =
+    profile.name ||
     authUser.user_metadata?.full_name ||
     authUser.email?.split("@")[0] ||
     "User";
 
-  const { data: newUser, error } = await supabase
-    .from("users")
-    .insert({
+  return {
+    authUser,
+    profile,
+    // Synthetic user object compatible with old DoctorLayout/PatientLayout
+    user: {
       id: authUser.id,
+      clerk_id: null,
       email: authUser.email || "",
-      role,
-      full_name: fullName,
-      phone: authUser.phone || null,
+      role: profile.role as "doctor" | "patient" | "admin",
+      full_name: displayName,
+      phone: profile.phone || null,
       avatar_url: authUser.user_metadata?.avatar_url || null,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[Clinica] Error creating user:", error);
-    // Race condition — try fetching again
-    if (error.code === "23505") {
-      const { data: retryUser } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authUser.id)
-        .single();
-      if (retryUser) return { user: retryUser, authUser };
-    }
-    throw new Error(`Database error: ${error.message}`);
-  }
-
-  // Create role-specific profile
-  if (role === "admin" || role === "doctor") {
-    await supabase.from("doctors").insert({ user_id: newUser.id });
-  } else {
-    await supabase.from("patients").insert({ user_id: newUser.id });
-  }
-
-  return { user: newUser, authUser };
+      created_at: authUser.created_at || new Date().toISOString(),
+    },
+  };
 }
 
 /**
- * Requires the current user to be a doctor or admin.
- * Redirects patients to their dashboard.
+ * Requires the current user to be a doctor (or receptionist acting as doctor).
+ * Redirects if wrong role.
  */
 export async function requireDoctor() {
-  const { user } = await getOrCreateSupabaseUser();
+  const { authUser, profile, user } = await getAuthUserWithProfile();
 
-  if (user.role !== "doctor" && user.role !== "admin") {
-    redirect("/patient/dashboard");
+  if (profile.role !== "doctor") {
+    if (profile.role === "receptionist") redirect("/receptionist-dashboard");
+    redirect("/patient-dashboard");
   }
 
   const supabase = await createClient();
-  const { data: doctorData } = await supabase
+
+  // Get or auto-create doctors record keyed by authUser.id
+  let { data: doctorData } = await supabase
     .from("doctors")
     .select("*")
-    .eq("user_id", user.id)
-    .single();
+    .eq("user_id", authUser.id)
+    .maybeSingle();
 
   if (!doctorData) {
     const { data: created } = await supabase
       .from("doctors")
-      .insert({ user_id: user.id })
+      .insert({ user_id: authUser.id })
       .select()
       .single();
-    return { user, doctor: created! };
+    doctorData = created;
   }
 
-  return { user, doctor: doctorData };
+  return { user, doctor: doctorData! };
 }
 
 /**
  * Requires the current user to be a patient.
- * Redirects doctors to the dashboard.
+ * Redirects doctors to their dashboard.
  */
 export async function requirePatient() {
-  const { user } = await getOrCreateSupabaseUser();
+  const { authUser, profile, user } = await getAuthUserWithProfile();
 
-  if (user.role !== "patient") redirect("/dashboard");
-
-  const supabase = await createClient();
-  const { data: patientData } = await supabase
-    .from("patients")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!patientData) {
-    // Auto-create patient record if missing
-    const { data: created } = await supabase
-      .from("patients")
-      .insert({ user_id: user.id })
-      .select()
-      .single();
-    return { user, patient: created! };
+  if (profile.role !== "patient") {
+    if (profile.role === "doctor") redirect("/doctor-dashboard");
+    redirect("/receptionist-dashboard");
   }
 
-  return { user, patient: patientData };
+  const supabase = await createClient();
+
+  // Get or auto-create patients record
+  let { data: patientData } = await supabase
+    .from("patients")
+    .select("*")
+    .eq("user_id", authUser.id)
+    .maybeSingle();
+
+  if (!patientData) {
+    const { data: created } = await supabase
+      .from("patients")
+      .insert({ user_id: authUser.id })
+      .select()
+      .single();
+    patientData = created;
+  }
+
+  return { user, patient: patientData! };
+}
+
+/**
+ * Legacy: kept for auth/actions.ts compatibility.
+ * Returns the auth user and a profile-based user object.
+ */
+export async function getOrCreateSupabaseUser() {
+  const { authUser, user } = await getAuthUserWithProfile();
+  return { user, authUser };
 }

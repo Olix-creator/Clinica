@@ -1,6 +1,5 @@
 import { requireDoctor } from "@/lib/auth/sync-user";
 import { createClient } from "@/lib/supabase/server";
-import { format } from "date-fns";
 import Link from "next/link";
 import {
   Users,
@@ -28,38 +27,37 @@ export default async function DoctorDashboard() {
   const tomorrowStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
 
   // Fetch stats and data in parallel
-  const [appointmentsRes, queueRes, visitsRes] = await Promise.all([
+  // Use bookings (our primary booking table) instead of old appointments table
+  const todayDate = today.toISOString().split("T")[0];
+  const [bookingsRes, queueRes, visitsRes] = await Promise.all([
     supabase
-      .from("appointments")
-      .select("*, patients(*, users(*))")
-      .eq("doctor_id", doctorData.id)
-      .gte("scheduled_at", todayStart)
-      .lt("scheduled_at", tomorrowStart)
-      .order("scheduled_at", { ascending: true }),
+      .from("bookings")
+      .select("*, consultation_types(*)")
+      .eq("date", todayDate)
+      .eq("status", "booked")
+      .order("time", { ascending: true }),
     supabase
       .from("queue")
-      .select("*, patients(*, users(*))")
-      .eq("doctor_id", doctorData.id)
-      .neq("status", "completed")
+      .select("*")
+      .in("status", ["waiting", "in_progress"])
       .order("position", { ascending: true }),
     supabase
       .from("visits")
       .select("*")
-      .eq("doctor_id", doctorData.id)
       .gte("created_at", todayStart)
       .lt("created_at", tomorrowStart)
       .eq("status", "completed"),
   ]);
 
-  const appointments = appointmentsRes.data || [];
+  const appointments = bookingsRes.data || [];
   const queueEntries = queueRes.data || [];
   const completedVisits = visitsRes.data || [];
 
   const totalPatients = appointments.length;
   const completedCount = completedVisits.length;
-  const pendingCount = appointments.filter((a: { status: string }) => a.status === "pending").length;
+  const pendingCount = appointments.filter((a: { status: string }) => a.status === "booked").length;
 
-  const currentPatient = queueEntries.find((q: { status: string }) => q.status === "in-consultation");
+  const currentPatient = queueEntries.find((q: { status: string }) => q.status === "in_progress");
   const nextPatient = queueEntries.find((q: { status: string }) => q.status === "waiting");
 
   const statusColors: Record<string, { bg: string; text: string }> = {
@@ -158,14 +156,14 @@ export default async function DoctorDashboard() {
             {currentPatient ? (
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-xs font-bold">
-                  {currentPatient.position}
+                  {(currentPatient as Record<string, unknown>).queue_number as number}
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Current Patient</p>
                   <p className="text-sm font-semibold text-gray-900">
-                    {currentPatient.patients?.users?.full_name || "Unknown"}
+                    {(currentPatient as Record<string, unknown>).name as string || "Unknown"}
                   </p>
-                  <p className="text-xs text-gray-500">{currentPatient.room || "Consultation Room"}</p>
+                  <p className="text-xs text-gray-500">Consultation Room</p>
                 </div>
               </div>
             ) : (
@@ -175,16 +173,15 @@ export default async function DoctorDashboard() {
             {nextPatient && (
               <div className="flex items-center gap-3 mb-4 pl-2 border-l-2 border-gray-200">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-xs font-bold">
-                  {nextPatient.position}
+                  {(nextPatient as Record<string, unknown>).queue_number as number}
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] font-medium text-gray-400 uppercase">Next in Line</p>
                   <p className="text-sm font-medium text-gray-700">
-                    {nextPatient.patients?.users?.full_name || "Unknown"}
+                    {(nextPatient as Record<string, unknown>).name as string || "Unknown"}
                   </p>
-                  <p className="text-xs text-gray-400">Waiting Area A</p>
+                  <p className="text-xs text-gray-400">Waiting Area</p>
                 </div>
-                <span className="text-xs font-medium text-primary">In 12m</span>
               </div>
             )}
 
@@ -249,57 +246,38 @@ export default async function DoctorDashboard() {
               </thead>
               <tbody>
                 {appointments.slice(0, 5).map((apt: Record<string, unknown>) => {
-                  const patient = apt.patients as Record<string, unknown> | undefined;
-                  const patientUser = patient?.users as Record<string, unknown> | undefined;
-                  const patientName = (patientUser?.full_name as string) || "Unknown";
-                  const initials = patientName
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .slice(0, 2);
-                  const status = (apt.status as string) || "pending";
-                  const colors = statusColors[status] || statusColors.pending;
+                  const consultType = apt.consultation_types as Record<string, unknown> | undefined;
+                  const patientName = (apt.patient_name as string) || "Walk-in Patient";
+                  const initials = patientName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+                  const status = (apt.status as string) || "booked";
+                  const colors = statusColors[status] || { bg: "bg-green-50", text: "text-green-700" };
 
                   return (
                     <tr key={apt.id as string} className="border-b border-gray-50 hover:bg-gray-50/50">
                       <td className="py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
                             {initials}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{patientName}</p>
-                            <p className="text-xs text-gray-400">
-                              ID: #{(apt.id as string)?.slice(0, 8)}
-                            </p>
+                            <p className="text-xs text-gray-400">{apt.patient_phone as string || "—"}</p>
                           </div>
                         </div>
                       </td>
                       <td className="py-3">
-                        <p className="text-sm text-gray-900">
-                          {format(new Date(apt.scheduled_at as string), "hh:mm a")}
-                        </p>
+                        <p className="text-sm text-gray-900">{apt.time as string}</p>
                       </td>
                       <td className="py-3 hidden md:table-cell">
-                        <p className="text-sm text-gray-600 capitalize">{(apt.type as string)?.replace("-", " ")}</p>
+                        <p className="text-sm text-gray-600">{(consultType?.name as string) || "Consultation"}</p>
                       </td>
                       <td className="py-3">
-                        <span
-                          className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colors.bg} ${colors.text} uppercase`}
-                        >
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${colors.bg} ${colors.text} uppercase`}>
                           {status}
                         </span>
                       </td>
                       <td className="py-3">
-                        <Link href={`/doctor/patients/${patient?.id}`} className="text-gray-400 hover:text-primary">
-                          {status === "active" ? (
-                            <Eye className="w-4 h-4" />
-                          ) : status === "completed" ? (
-                            <FileText className="w-4 h-4" />
-                          ) : (
-                            <CalendarDays className="w-4 h-4" />
-                          )}
-                        </Link>
+                        <CalendarDays className="w-4 h-4 text-gray-400 hover:text-primary cursor-pointer" />
                       </td>
                     </tr>
                   );

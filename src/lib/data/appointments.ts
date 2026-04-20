@@ -1,103 +1,151 @@
-"use server";
-
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import type { Database } from "@/types/database";
 
-export async function getAppointments(
-  doctorId: string,
-  filters?: { status?: string; date?: string }
-) {
+export type AppointmentStatus = Database["public"]["Enums"]["appointment_status"];
+export type Appointment = Database["public"]["Tables"]["appointments"]["Row"];
+
+export type AppointmentWithRelations = Appointment & {
+  doctor: {
+    id: string;
+    specialty: string | null;
+    profile: { id: string; full_name: string | null; email: string | null } | null;
+  } | null;
+  clinic: { id: string; name: string } | null;
+  patient: { id: string; full_name: string | null; email: string | null } | null;
+};
+
+const SELECT_WITH_RELATIONS =
+  "*, doctor:doctors(id, specialty, profile:profiles!doctors_profile_id_fkey(id, full_name, email)), clinic:clinics(id, name), patient:profiles!appointments_patient_id_fkey(id, full_name, email)";
+
+export async function createAppointment({
+  doctorId,
+  clinicId,
+  appointmentDate,
+  patientId,
+}: {
+  doctorId: string;
+  clinicId: string;
+  appointmentDate: string;
+  patientId?: string;
+}): Promise<{ data: Appointment | null; error: string | null }> {
   const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { data: null, error: "Not authenticated" };
 
-  let query = supabase
-    .from("appointments")
-    .select("*, patients(*, users(*))")
-    .eq("doctor_id", doctorId)
-    .order("scheduled_at", { ascending: true });
+  if (!doctorId) return { data: null, error: "Please select a doctor" };
+  if (!clinicId) return { data: null, error: "Please select a clinic" };
+  if (!appointmentDate) return { data: null, error: "Please pick a date and time" };
 
-  if (filters?.status) {
-    query = query.eq("status", filters.status);
+  const when = new Date(appointmentDate);
+  if (Number.isNaN(when.getTime())) return { data: null, error: "Invalid date" };
+  if (when.getTime() < Date.now()) return { data: null, error: "Date must be in the future" };
+
+  const { data: doctorRow, error: doctorErr } = await supabase
+    .from("doctors")
+    .select("id")
+    .eq("id", doctorId)
+    .eq("clinic_id", clinicId)
+    .maybeSingle();
+  if (doctorErr) {
+    console.error("[clinica] createAppointment doctor lookup:", doctorErr.message);
+    return { data: null, error: "Could not verify doctor/clinic" };
   }
+  if (!doctorRow) return { data: null, error: "Selected doctor does not belong to this clinic" };
 
-  if (filters?.date) {
-    const dateStart = `${filters.date}T00:00:00.000Z`;
-    const dateEnd = new Date(
-      new Date(filters.date).getTime() + 86400000
-    ).toISOString();
-    query = query.gte("scheduled_at", dateStart).lt("scheduled_at", dateEnd);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  return { data };
-}
-
-export async function createAppointment(data: {
-  doctor_id: string;
-  patient_id: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  type: string;
-  status?: string;
-  notes?: string;
-}) {
-  const supabase = await createClient();
-
-  const { data: appointment, error } = await supabase
+  const { data, error } = await supabase
     .from("appointments")
     .insert({
-      ...data,
-      status: data.status ?? "pending",
+      patient_id: patientId ?? userData.user.id,
+      doctor_id: doctorId,
+      clinic_id: clinicId,
+      appointment_date: when.toISOString(),
     })
-    .select()
+    .select("*")
     .single();
 
   if (error) {
-    return { error: error.message };
+    console.error("[clinica] createAppointment insert:", error.message);
+    return { data: null, error: error.message };
   }
-
-  revalidatePath("/dashboard");
-  revalidatePath("/appointments");
-
-  return { success: true, data: appointment };
+  return { data, error: null };
 }
 
-export async function updateAppointmentStatus(id: string, status: string) {
+export async function getAppointmentsByRole(options?: {
+  dateISO?: string;
+  todayOnly?: boolean;
+}): Promise<{ data: AppointmentWithRelations[]; role: Database["public"]["Enums"]["app_role"] | null }> {
   const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { data: [], role: null };
 
-  const { error } = await supabase
-    .from("appointments")
-    .update({ status })
-    .eq("id", id);
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userData.user.id)
+    .maybeSingle();
 
-  if (error) {
-    return { error: error.message };
+  if (!profile) return { data: [], role: null };
+
+  let query = supabase.from("appointments").select(SELECT_WITH_RELATIONS);
+
+  if (profile.role === "patient") {
+    query = query.eq("patient_id", userData.user.id);
+  } else if (profile.role === "doctor") {
+    const { data: doctorRow } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("profile_id", userData.user.id)
+      .maybeSingle();
+    if (!doctorRow) return { data: [], role: profile.role };
+    query = query.eq("doctor_id", doctorRow.id);
   }
 
-  revalidatePath("/dashboard");
-  revalidatePath("/appointments");
+  if (options?.todayOnly) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    query = query.gte("appointment_date", start.toISOString()).lt("appointment_date", end.toISOString());
+  } else if (options?.dateISO) {
+    const start = new Date(options.dateISO);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    query = query.gte("appointment_date", start.toISOString()).lt("appointment_date", end.toISOString());
+  }
 
-  return { success: true };
+  const { data, error } = await query.order("appointment_date", { ascending: true });
+  if (error) {
+    console.error("[clinica] getAppointmentsByRole:", error.message);
+    return { data: [], role: profile.role };
+  }
+  return { data: (data ?? []) as AppointmentWithRelations[], role: profile.role };
 }
 
-export async function deleteAppointment(id: string) {
+export async function updateAppointmentStatus(
+  id: string,
+  status: AppointmentStatus,
+): Promise<{ error: string | null }> {
   const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("appointments")
-    .delete()
-    .eq("id", id);
-
+  const { error } = await supabase.from("appointments").update({ status }).eq("id", id);
   if (error) {
+    console.error("[clinica] updateAppointmentStatus:", error.message);
     return { error: error.message };
   }
+  return { error: null };
+}
 
-  revalidatePath("/dashboard");
-  revalidatePath("/appointments");
-
-  return { success: true };
+export async function lookupPatientByEmail(email: string): Promise<{ id: string; full_name: string | null; email: string | null } | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .eq("role", "patient")
+    .ilike("email", email.trim())
+    .maybeSingle();
+  if (error) {
+    console.error("[clinica] lookupPatientByEmail:", error.message);
+    return null;
+  }
+  return data;
 }

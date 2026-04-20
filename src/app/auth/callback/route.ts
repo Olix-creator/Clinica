@@ -4,21 +4,29 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const redirectTo = url.searchParams.get("redirect") || "/dashboard";
 
-  if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error) {
-      console.error("[Clinica] Auth callback error:", error.message);
-      return NextResponse.redirect(new URL("/login?error=auth_failed", url.origin));
-    }
-
-    console.log("[Clinica] Auth callback success, redirecting to:", redirectTo);
-    return NextResponse.redirect(new URL(redirectTo, url.origin));
+  if (!code) {
+    console.warn("[clinica] auth callback called without code param");
+    return NextResponse.redirect(new URL("/login?error=no_code", url.origin));
   }
 
-  console.warn("[Clinica] Auth callback called without code param");
-  return NextResponse.redirect(new URL("/login?error=no_code", url.origin));
+  const supabase = await createClient();
+  const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error || !sessionData?.user) {
+    console.error("[clinica] auth callback exchange error:", error?.message);
+    return NextResponse.redirect(new URL("/login?error=auth_failed", url.origin));
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", sessionData.user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return NextResponse.redirect(new URL("/onboarding", url.origin));
+  }
+
+  return NextResponse.redirect(new URL("/dashboard", url.origin));
 }

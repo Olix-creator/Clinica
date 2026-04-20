@@ -1,20 +1,56 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { User, Phone, ArrowRight, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Briefcase, Stethoscope, User, ClipboardList, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
+
+type Role = "doctor" | "patient" | "receptionist";
 
 export default function OnboardingPage() {
   const { user, isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<Role | null>(null);
   const [error, setError] = useState("");
 
-  if (!isLoaded) {
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) router.replace("/login");
+  }, [isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) router.replace("/dashboard");
+      });
+  }, [user, router]);
+
+  async function selectRole(role: Role) {
+    if (!user) return;
+    setLoading(role);
+    setError("");
+    const supabase = createClient();
+    const fullName = (user.user_metadata?.full_name as string | undefined) ?? user.email?.split("@")[0] ?? null;
+    const { error: insertError } = await supabase
+      .from("profiles")
+      .insert({ id: user.id, email: user.email ?? null, full_name: fullName, role });
+    if (insertError) {
+      console.error("[clinica] onboarding insert error:", insertError.message);
+      setError("Could not save your role. Please try again.");
+      setLoading(null);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -22,72 +58,44 @@ export default function OnboardingPage() {
     );
   }
 
-  if (!isSignedIn) {
-    router.replace("/login");
-    return null;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-    setLoading(true);
-    setError("");
-
-    try {
-      const supabase = createClient();
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ name: name.trim(), phone: phone.trim() })
-        .eq("id", user.id);
-
-      if (updateError) throw updateError;
-      router.push("/dashboard");
-    } catch (err) {
-      console.error("[Clinica] Onboarding error:", err);
-      setError("Something went wrong. Please try again.");
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-500 rounded-2xl mb-4 shadow-lg shadow-green-500/30">
-            <User className="w-8 h-8 text-white" />
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4 shadow-lg shadow-primary/30">
+            <Briefcase className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
-          <p className="text-gray-500 mt-1 text-sm">Tell us a bit about yourself</p>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome to Clinica</h1>
+          <p className="text-gray-500 mt-1">Choose your role to get started</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-7">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 text-center">
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {(
+            [
+              { role: "doctor" as const, Icon: Stethoscope, title: "Doctor", desc: "Manage patients & appointments", accent: "text-primary bg-blue-50" },
+              { role: "patient" as const, Icon: User, title: "Patient", desc: "Book visits & manage health", accent: "text-green-600 bg-green-50" },
+              { role: "receptionist" as const, Icon: ClipboardList, title: "Receptionist", desc: "Manage bookings & queue", accent: "text-orange-600 bg-orange-50" },
+            ] as const
+          ).map(({ role, Icon, title, desc, accent }) => (
+            <button
+              key={role}
+              onClick={() => selectRole(role)}
+              disabled={!!loading}
+              className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-primary p-8 text-center transition-all hover:shadow-xl active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${accent}`}>
+                {loading === role ? <Loader2 className="w-8 h-8 animate-spin" /> : <Icon className="w-8 h-8" />}
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Phone Number <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0555 123 456"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
-              </div>
-            </div>
-            {error && <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</div>}
-            <button type="submit" disabled={loading || !name.trim() || !phone.trim()}
-              className="w-full py-3.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-95">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Continue<ArrowRight className="w-5 h-5" /></>}
+              <h3 className="text-lg font-bold text-gray-900 mb-1">{title}</h3>
+              <p className="text-sm text-gray-500">{desc}</p>
             </button>
-          </form>
+          ))}
         </div>
       </div>
     </div>

@@ -99,7 +99,7 @@ function NavBar() {
           <LanguageSwitcher />
           <AuthButton />
           <Link
-            href="/queue"
+            href="/signup"
             className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary/25 active:scale-95"
           >
             {l.startFree}
@@ -142,7 +142,7 @@ function NavBar() {
                 <LanguageSwitcher />
               </div>
               <AuthButtonMobile label={l.signIn} />
-              <Link href="/queue" className="py-2.5 text-center text-sm font-semibold bg-primary text-white rounded-xl">
+              <Link href="/signup" className="py-2.5 text-center text-sm font-semibold bg-primary text-white rounded-xl">
                 {l.startFree}
               </Link>
             </div>
@@ -256,7 +256,7 @@ function HeroSection() {
 
           <motion.div variants={fadeUp} custom={3} className="flex flex-wrap gap-3">
             <Link
-              href="/queue"
+              href="/signup"
               className="flex items-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-95"
             >
               {l.heroCta}
@@ -471,7 +471,7 @@ function PricingSection() {
               ))}
             </ul>
             <Link
-              href="/queue"
+              href="/signup"
               className="block text-center py-3 px-4 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary hover:text-white transition-all"
             >
               {l.getStartedFree}

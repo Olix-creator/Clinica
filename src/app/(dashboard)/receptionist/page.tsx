@@ -5,6 +5,7 @@ import { getAppointmentsByRole, type AppointmentStatus } from "@/lib/data/appoin
 import { AppointmentsTable } from "@/components/receptionist/AppointmentsTable";
 import { DateFilter } from "@/components/receptionist/DateFilter";
 import { StatusFilter } from "@/components/receptionist/StatusFilter";
+import { NameFilter } from "@/components/receptionist/NameFilter";
 import { AddAppointmentModal } from "@/components/receptionist/AddAppointmentModal";
 import { BootstrapPanel } from "@/components/receptionist/BootstrapPanel";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
@@ -14,11 +15,12 @@ const VALID_STATUSES: AppointmentStatus[] = ["pending", "confirmed", "done", "ca
 export default async function ReceptionistPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; status?: string }>;
+  searchParams: Promise<{ date?: string; status?: string; q?: string }>;
 }) {
   const profile = await requireRole("receptionist");
   const sp = await searchParams;
   const dateISO = sp.date || undefined;
+  const query = (sp.q ?? "").trim().toLowerCase();
   const statusFilter =
     sp.status && VALID_STATUSES.includes(sp.status as AppointmentStatus)
       ? (sp.status as AppointmentStatus)
@@ -29,9 +31,27 @@ export default async function ReceptionistPage({
     getAppointmentsByRole({ dateISO }),
   ]);
 
-  const appointments = statusFilter
+  const filtered = statusFilter
     ? allAppointments.filter((a) => a.status === statusFilter)
     : allAppointments;
+
+  const appointments = query
+    ? filtered.filter((a) => {
+        const hay = [
+          a.patient?.full_name,
+          a.patient?.email,
+          a.patient?.phone,
+          a.doctor?.name,
+          a.doctor?.profile?.full_name,
+          a.doctor?.profile?.email,
+          a.clinic?.name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(query);
+      })
+    : filtered;
 
   const counts = {
     total: allAppointments.length,
@@ -77,6 +97,7 @@ export default async function ReceptionistPage({
 
       {/* Control bar */}
       <div className="rounded-2xl bg-surface-container-low p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+        <NameFilter />
         <div className="flex items-center gap-2 flex-wrap">
           <DateFilter />
           <StatusFilter />
@@ -94,6 +115,7 @@ export default async function ReceptionistPage({
             <p className="text-xs text-on-surface-variant mt-0.5">
               {dateISO ? `Filtered by ${dateISO}` : "All clinics"}
               {statusFilter ? ` · ${statusFilter}` : ""}
+              {query ? ` · “${query}”` : ""}
               {` · ${appointments.length} row${appointments.length === 1 ? "" : "s"}`}
             </p>
           </div>

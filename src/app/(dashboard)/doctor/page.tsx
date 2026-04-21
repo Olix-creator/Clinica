@@ -10,9 +10,14 @@ import {
 import { requireRole } from "@/lib/auth";
 import { getDoctorByProfile } from "@/lib/data/doctors";
 import { getAppointmentsByRole, type AppointmentWithRelations } from "@/lib/data/appointments";
+import { clinicMemberService } from "@/lib/services/clinicMemberService";
+import { subscriptionService } from "@/lib/services/subscriptionService";
+import { analyticsService } from "@/lib/services/analyticsService";
 import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
 import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
+import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel";
+import { AnalyticsStrip } from "@/components/doctor/AnalyticsStrip";
 
 function patientLabel(a: AppointmentWithRelations): string {
   return a.patient?.full_name ?? a.patient?.email ?? "Patient";
@@ -43,21 +48,56 @@ function stateForAppt(a: AppointmentWithRelations): ScheduleState {
 
 export default async function DoctorPage() {
   const profile = await requireRole("doctor");
-  const doctor = await getDoctorByProfile(profile.id);
+  const [doctor, ownedRaw] = await Promise.all([
+    getDoctorByProfile(profile.id),
+    clinicMemberService.listOwnedClinics(),
+  ]);
 
-  if (!doctor) {
+  // Fan out clinic details (members + subscription) in parallel.
+  const ownedClinicIds = ownedRaw.map((c) => c.id);
+  const [memberLists, subMap] = await Promise.all([
+    Promise.all(ownedRaw.map((c) => clinicMemberService.list(c.id))),
+    subscriptionService.getMany(ownedClinicIds),
+  ]);
+
+  const ownedClinics = ownedRaw.map((c, i) => {
+    const sub = subMap[c.id];
+    return {
+      id: c.id,
+      name: c.name,
+      plan: sub?.plan ?? "free",
+      seats: sub?.seats ?? subscriptionService.seatLimit(sub?.plan ?? "free"),
+      members: memberLists[i] ?? [],
+    };
+  });
+
+  const primaryClinicId = doctor?.clinic_id ?? ownedClinics[0]?.id ?? null;
+  const primaryClinicName =
+    ownedClinics.find((c) => c.id === primaryClinicId)?.name ??
+    memberLists.flat().find((m) => m.clinic_id === primaryClinicId)?.profile?.full_name ??
+    "Your clinic";
+
+  const analytics = primaryClinicId
+    ? await analyticsService.forClinic(primaryClinicId)
+    : null;
+
+  if (!doctor && ownedClinics.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto animate-fade-in">
-        <div className="mb-8">
+      <div className="max-w-3xl mx-auto animate-fade-in space-y-6">
+        <div>
           <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Your clinic</p>
           <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
             Welcome, Dr. {profile.full_name?.split(" ").slice(-1)[0] ?? ""}.
           </h1>
+          <p className="text-on-surface-variant mt-2">
+            Set up your first clinic to start inviting staff and booking patients.
+          </p>
         </div>
+        <ClinicManagementPanel clinics={[]} />
         <EmptyState
           icon={Building2}
           title="You&rsquo;re not attached to a clinic yet"
-          description="Ask a receptionist to add you to their clinic to start seeing patients."
+          description="Create one above, or ask a receptionist to add you to their clinic."
         />
       </div>
     );
@@ -87,24 +127,36 @@ export default async function DoctorPage() {
     .filter((a) => a.status === "pending" || a.status === "confirmed")
     .slice(0, 4);
 
-  const doctorDisplay = doctorLabel(profile.full_name, doctor.name);
+  const doctorDisplay = doctorLabel(profile.full_name, doctor?.name ?? null);
+  const channelKey = doctor?.id ?? primaryClinicId ?? profile.id;
+  const isOwner = ownedClinics.length > 0;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
-      <DashboardRealtime channelKey={`doctor:${doctor.id}`} />
+      <DashboardRealtime channelKey={`doctor:${channelKey}`} />
 
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Today&rsquo;s shift</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">
+            {isOwner ? "Your practice" : "Today’s shift"}
+          </p>
           <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
             Welcome, {doctorDisplay}.
           </h1>
           <p className="text-on-surface-variant mt-2">
             {fmtDate(new Date().toISOString())}
-            {doctor.specialty ? ` · ${doctor.specialty}` : ""}
+            {doctor?.specialty ? ` · ${doctor.specialty}` : ""}
           </p>
         </div>
       </header>
+
+      {/* Clinic management (owners) */}
+      {isOwner && <ClinicManagementPanel clinics={ownedClinics} />}
+
+      {/* Analytics strip */}
+      {analytics && primaryClinicId && (
+        <AnalyticsStrip clinicName={primaryClinicName} analytics={analytics} />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

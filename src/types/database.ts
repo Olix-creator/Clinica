@@ -121,6 +121,8 @@ export type Database = {
           type: string
           message: string
           appointment_id: string | null
+          phone: string | null
+          template_key: string | null
           read: boolean
           created_at: string
         }
@@ -130,6 +132,8 @@ export type Database = {
           type?: string
           message: string
           appointment_id?: string | null
+          phone?: string | null
+          template_key?: string | null
           read?: boolean
           created_at?: string
         }
@@ -139,8 +143,70 @@ export type Database = {
           type?: string
           message?: string
           appointment_id?: string | null
+          phone?: string | null
+          template_key?: string | null
           read?: boolean
           created_at?: string
+        }
+        Relationships: []
+      }
+      clinic_members: {
+        Row: {
+          id: string
+          clinic_id: string
+          user_id: string
+          role: Database["public"]["Enums"]["clinic_member_role"]
+          invited_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          user_id: string
+          role: Database["public"]["Enums"]["clinic_member_role"]
+          invited_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          user_id?: string
+          role?: Database["public"]["Enums"]["clinic_member_role"]
+          invited_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          clinic_id: string
+          plan: Database["public"]["Enums"]["plan_tier"]
+          status: string
+          seats: number
+          started_at: string
+          renewed_at: string | null
+          cancelled_at: string | null
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          plan?: Database["public"]["Enums"]["plan_tier"]
+          status?: string
+          seats?: number
+          started_at?: string
+          renewed_at?: string | null
+          cancelled_at?: string | null
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          plan?: Database["public"]["Enums"]["plan_tier"]
+          status?: string
+          seats?: number
+          started_at?: string
+          renewed_at?: string | null
+          cancelled_at?: string | null
         }
         Relationships: []
       }
@@ -149,10 +215,24 @@ export type Database = {
     Functions: {
       is_doctor: { Args: { doctor_row: string }; Returns: boolean }
       is_receptionist: { Args: never; Returns: boolean }
+      is_clinic_owner: { Args: { clinic_row: string }; Returns: boolean }
+      is_clinic_member: { Args: { clinic_row: string }; Returns: boolean }
+      is_clinic_staff: { Args: { clinic_row: string }; Returns: boolean }
+      find_profile_by_email: {
+        Args: { lookup_email: string }
+        Returns: {
+          id: string
+          full_name: string | null
+          email: string | null
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
     }
     Enums: {
       app_role: "patient" | "doctor" | "receptionist"
       appointment_status: "pending" | "confirmed" | "done" | "cancelled"
+      clinic_member_role: "doctor" | "receptionist" | "owner"
+      plan_tier: "free" | "pro" | "enterprise"
     }
     CompositeTypes: { [_ in never]: never }
   }

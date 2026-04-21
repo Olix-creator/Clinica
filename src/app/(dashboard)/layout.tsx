@@ -4,13 +4,35 @@ import { requireProfile } from "@/lib/auth";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 import NotificationBell from "@/components/layout/NotificationBell";
+import { clinicMemberService } from "@/lib/services/clinicMemberService";
+import { subscriptionService } from "@/lib/services/subscriptionService";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requireProfile();
 
+  // Staff (doctor / receptionist) get a "home clinic" chip in the sidebar.
+  let homeClinic: { name: string; plan: string; role: string } | null = null;
+  if (profile.role !== "patient") {
+    const clinics = await clinicMemberService.listClinicsForUser();
+    if (clinics.length > 0) {
+      const first = clinics[0];
+      const sub = await subscriptionService.get(first.id);
+      homeClinic = {
+        name: first.name,
+        plan: subscriptionService.label(sub?.plan ?? "free"),
+        role: first.role,
+      };
+    }
+  }
+
   return (
     <div className="min-h-screen bg-surface text-on-surface">
-      <Sidebar role={profile.role} fullName={profile.full_name} email={profile.email} />
+      <Sidebar
+        role={profile.role}
+        fullName={profile.full_name}
+        email={profile.email}
+        homeClinic={homeClinic}
+      />
 
       {/* Mobile topbar (branding) — only shown on small screens */}
       <div className="lg:hidden sticky top-0 z-40 bg-surface-container-low/90 backdrop-blur-xl border-b border-outline-variant/30">

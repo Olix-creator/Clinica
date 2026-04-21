@@ -1,34 +1,247 @@
--- Step 6 — Fix doctor dashboard visibility of appointments.
+-- =====================================================================
+-- 0006 — Fix doctor dashboard visibility + ensure clinic_members exists
 --
--- Symptom: a patient books an appointment, it appears in the patient
--- dashboard, but the doctor dashboard is empty.
+-- IDEMPOTENT & SAFE.
+-- Works whether or not migration 0005 was applied.
+-- Touches only:
+--   * enum public.clinic_member_role        (create if missing)
+--   * table public.clinic_members           (create if missing)
+--   * table public.doctors                  (insert backfill only)
+--   * policies on appointments / members    (drop-if-exists + create)
+--   * helper functions & triggers           (create or replace)
 --
--- Root causes closed here:
---   1. Owner-doctors (profile.role='doctor' who created a clinic) may not
---      have a row in public.doctors, so getDoctorByProfile() returns null
---      and the dashboard renders empty. A trigger now auto-creates a
---      doctors row on clinic creation when the creator is a doctor profile.
---   2. The RLS policy appointments_doctor_select_clinic only passed when
---      public.doctors had a row matching the clinic — it did not honor the
---      newer clinic_members model. It's now augmented to also pass when
---      the caller is a clinic_member with role in (owner, doctor).
---   3. An RPC (get_doctor_appointments_for_user) gives the server a
---      deterministic, RLS-safe read path that bypasses subtle nested-policy
---      evaluation when joining relations.
+-- Does NOT:
+--   * drop any existing table / column
+--   * truncate any existing data
+--   * rename anything
 --
--- Apply via Supabase Dashboard → SQL Editor on mixppfepddefteaelthu.
+-- Run in Supabase → SQL editor on project mixppfepddefteaelthu.
+-- =====================================================================
 
--- =============================================================
--- 1. Auto-create a doctors row for doctor-role clinic creators
--- =============================================================
+
+-- =====================================================================
+-- SECTION A — clinic_members (TASK 1)
+-- =====================================================================
+
+-- A.1 Enum type, created only if missing.
+do $$
+begin
+  if not exists (
+    select 1 from pg_type t
+    join pg_namespace n on n.oid = t.typnamespace
+    where t.typname = 'clinic_member_role'
+      and n.nspname = 'public'
+  ) then
+    create type public.clinic_member_role as enum ('owner', 'doctor', 'receptionist');
+  end if;
+end
+$$;
+
+-- A.2 Table. `create table if not exists` → no-op on re-run.
+-- NOTE on uniqueness: we use (clinic_id, user_id, role) rather than the
+-- tighter (clinic_id, user_id) so a single user can, if needed, carry more
+-- than one role in the same clinic (e.g. an owner-doctor). This matches
+-- existing Step 5 behaviour and the service-layer code that already
+-- relies on it. Adding the tighter constraint here would break owner-
+-- doctors who also appear as doctor members.
+create table if not exists public.clinic_members (
+  id          uuid primary key default gen_random_uuid(),
+  clinic_id   uuid not null references public.clinics(id) on delete cascade,
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  role        public.clinic_member_role not null,
+  invited_by  uuid references public.profiles(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+
+-- A.3 Make sure the composite uniqueness exists, even on a table created
+-- by an older, laxer version of this migration.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'clinic_members_clinic_id_user_id_role_key'
+      and conrelid = 'public.clinic_members'::regclass
+  ) then
+    alter table public.clinic_members
+      add constraint clinic_members_clinic_id_user_id_role_key
+      unique (clinic_id, user_id, role);
+  end if;
+end
+$$;
+
+-- A.4 Indexes for the hot lookups. `if not exists` → safe.
+create index if not exists clinic_members_user_idx   on public.clinic_members(user_id);
+create index if not exists clinic_members_clinic_idx on public.clinic_members(clinic_id);
+
+
+-- =====================================================================
+-- SECTION B — RLS on clinic_members (TASKS 2 + 3)
+-- =====================================================================
+alter table public.clinic_members enable row level security;
+
+-- B.1 Helper: is the current user the owner of this clinic?
+-- Reading public.clinics is safe here because SECURITY DEFINER bypasses RLS.
+create or replace function public.is_clinic_owner(clinic_row uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.clinics
+    where id = clinic_row
+      and created_by = auth.uid()
+  );
+$$;
+
+-- B.2 Helper: is the current user ANY member of this clinic (membership
+-- table OR legacy doctors row)?  This is what the doctor RLS relies on.
+create or replace function public.is_clinic_member(clinic_row uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.clinic_members
+    where clinic_id = clinic_row
+      and user_id   = auth.uid()
+  )
+  or exists (
+    select 1 from public.doctors
+    where clinic_id  = clinic_row
+      and profile_id = auth.uid()
+  );
+$$;
+
+-- B.3 Helper: owner / doctor / receptionist role scoped to a clinic.
+create or replace function public.is_clinic_staff(clinic_row uuid)
+returns boolean
+language sql
+stable
+security definer set search_path = public
+as $$
+  select exists (
+    select 1 from public.clinic_members
+    where clinic_id = clinic_row
+      and user_id   = auth.uid()
+      and role in ('owner','doctor','receptionist')
+  )
+  or exists (
+    select 1 from public.doctors
+    where clinic_id  = clinic_row
+      and profile_id = auth.uid()
+  );
+$$;
+
+-- B.4 Policies (idempotent).
+drop policy if exists "clinic_members_select_self_or_member" on public.clinic_members;
+create policy "clinic_members_select_self_or_member"
+  on public.clinic_members
+  for select to authenticated
+  using (
+    user_id = auth.uid()
+    or public.is_clinic_member(clinic_id)
+    or public.is_clinic_owner(clinic_id)
+  );
+
+drop policy if exists "clinic_members_insert_owner_or_self" on public.clinic_members;
+create policy "clinic_members_insert_owner_or_self"
+  on public.clinic_members
+  for insert to authenticated
+  with check (
+    public.is_clinic_owner(clinic_id)
+    or user_id = auth.uid()
+  );
+
+drop policy if exists "clinic_members_update_owner" on public.clinic_members;
+create policy "clinic_members_update_owner"
+  on public.clinic_members
+  for update to authenticated
+  using (public.is_clinic_owner(clinic_id))
+  with check (public.is_clinic_owner(clinic_id));
+
+drop policy if exists "clinic_members_delete_owner_or_self" on public.clinic_members;
+create policy "clinic_members_delete_owner_or_self"
+  on public.clinic_members
+  for delete to authenticated
+  using (
+    public.is_clinic_owner(clinic_id)
+    or user_id = auth.uid()
+  );
+
+
+-- =====================================================================
+-- SECTION C — Triggers that keep clinic_members in sync (TASK 4)
+-- =====================================================================
+
+-- C.1 Auto-add the creator as owner when a clinic is inserted.
+create or replace function public.add_creator_as_clinic_owner()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.clinic_members (clinic_id, user_id, role, invited_by)
+  values (new.id, new.created_by, 'owner', new.created_by)
+  on conflict (clinic_id, user_id, role) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_clinic_created_add_owner on public.clinics;
+create trigger on_clinic_created_add_owner
+  after insert on public.clinics
+  for each row execute function public.add_creator_as_clinic_owner();
+
+-- C.2 Auto-mirror a `doctors` insert into a `clinic_members(doctor)` row.
+create or replace function public.mirror_doctor_membership()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.clinic_members (clinic_id, user_id, role, invited_by)
+  values (new.clinic_id, new.profile_id, 'doctor', auth.uid())
+  on conflict (clinic_id, user_id, role) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_doctor_added_mirror_membership on public.doctors;
+create trigger on_doctor_added_mirror_membership
+  after insert on public.doctors
+  for each row execute function public.mirror_doctor_membership();
+
+-- C.3 Backfill: every existing clinic → owner row; every existing doctor →
+-- doctor member row. `on conflict do nothing` makes this safe on re-run.
+insert into public.clinic_members (clinic_id, user_id, role, invited_by)
+select c.id, c.created_by, 'owner', c.created_by
+from public.clinics c
+on conflict (clinic_id, user_id, role) do nothing;
+
+insert into public.clinic_members (clinic_id, user_id, role, invited_by)
+select d.clinic_id, d.profile_id, 'doctor', c.created_by
+from public.doctors d
+join public.clinics c on c.id = d.clinic_id
+on conflict (clinic_id, user_id, role) do nothing;
+
+
+-- =====================================================================
+-- SECTION D — Owner-doctors get a public.doctors row
+-- A doctor-role user who creates a clinic must be bookable. Without this
+-- the booking form wouldn't list them and the dashboard wouldn't match
+-- any appointment for them.
+-- =====================================================================
+
 create or replace function public.ensure_doctor_row_for_creator()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 declare
-  creator_role public.app_role;
-  creator_name text;
+  creator_role  public.app_role;
+  creator_name  text;
   creator_email text;
 begin
   select role, full_name, email
@@ -51,9 +264,7 @@ create trigger on_clinic_created_ensure_doctor
   after insert on public.clinics
   for each row execute function public.ensure_doctor_row_for_creator();
 
--- Backfill: any existing doctor-role creator without a doctors row gets one
--- in the clinic they created. `doctors.profile_id` is UNIQUE, so we pick
--- the earliest clinic per such creator.
+-- Backfill existing doctor-role creators without a doctors row.
 insert into public.doctors (profile_id, clinic_id, name)
 select distinct on (p.id)
   p.id,
@@ -66,60 +277,69 @@ where p.role = 'doctor'
 order by p.id, c.created_at asc
 on conflict (profile_id) do nothing;
 
--- =============================================================
--- 2. Harden the doctor SELECT/UPDATE policies on appointments
---    to also honor clinic_members membership (owner / doctor).
--- =============================================================
+
+-- =====================================================================
+-- SECTION E — RLS on appointments now honours clinic_members (fix)
+-- =====================================================================
+
+-- Drop older versions, if any (any of the three names from 0002 / 0004).
+drop policy if exists "appointments_doctor_select"        on public.appointments;
+drop policy if exists "appointments_doctor_update"        on public.appointments;
 drop policy if exists "appointments_doctor_select_clinic" on public.appointments;
-create policy "appointments_doctor_select_clinic" on public.appointments
-  for select to authenticated using (
-    exists (
-      select 1 from public.doctors me
-      where me.profile_id = auth.uid()
-        and me.clinic_id = public.appointments.clinic_id
-    )
-    or exists (
-      select 1 from public.clinic_members m
-      where m.user_id = auth.uid()
-        and m.clinic_id = public.appointments.clinic_id
-        and m.role in ('owner','doctor')
-    )
-  );
-
 drop policy if exists "appointments_doctor_update_clinic" on public.appointments;
-create policy "appointments_doctor_update_clinic" on public.appointments
-  for update to authenticated using (
+
+create policy "appointments_doctor_select_clinic"
+  on public.appointments
+  for select to authenticated
+  using (
     exists (
       select 1 from public.doctors me
       where me.profile_id = auth.uid()
-        and me.clinic_id = public.appointments.clinic_id
+        and me.clinic_id  = public.appointments.clinic_id
     )
     or exists (
       select 1 from public.clinic_members m
-      where m.user_id = auth.uid()
-        and m.clinic_id = public.appointments.clinic_id
-        and m.role in ('owner','doctor')
-    )
-  ) with check (
-    exists (
-      select 1 from public.doctors me
-      where me.profile_id = auth.uid()
-        and me.clinic_id = public.appointments.clinic_id
-    )
-    or exists (
-      select 1 from public.clinic_members m
-      where m.user_id = auth.uid()
+      where m.user_id  = auth.uid()
         and m.clinic_id = public.appointments.clinic_id
         and m.role in ('owner','doctor')
     )
   );
 
--- =============================================================
--- 3. Deterministic read RPC for the doctor dashboard.
---    Returns every appointment the caller should see as a doctor,
---    along with joined patient + clinic + doctor fields. Bypasses
---    nested-RLS evaluation surprises.
--- =============================================================
+create policy "appointments_doctor_update_clinic"
+  on public.appointments
+  for update to authenticated
+  using (
+    exists (
+      select 1 from public.doctors me
+      where me.profile_id = auth.uid()
+        and me.clinic_id  = public.appointments.clinic_id
+    )
+    or exists (
+      select 1 from public.clinic_members m
+      where m.user_id  = auth.uid()
+        and m.clinic_id = public.appointments.clinic_id
+        and m.role in ('owner','doctor')
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.doctors me
+      where me.profile_id = auth.uid()
+        and me.clinic_id  = public.appointments.clinic_id
+    )
+    or exists (
+      select 1 from public.clinic_members m
+      where m.user_id  = auth.uid()
+        and m.clinic_id = public.appointments.clinic_id
+        and m.role in ('owner','doctor')
+    )
+  );
+
+
+-- =====================================================================
+-- SECTION F — Deterministic read RPCs for the doctor dashboard (TASK 6)
+-- =====================================================================
+
 create or replace function public.doctor_visible_clinic_ids(p_user_id uuid)
 returns setof uuid
 language sql
@@ -137,22 +357,22 @@ grant execute on function public.doctor_visible_clinic_ids(uuid) to authenticate
 
 create or replace function public.get_doctor_appointments(
   p_date_from timestamptz default null,
-  p_date_to timestamptz default null
+  p_date_to   timestamptz default null
 )
 returns table (
-  id uuid,
-  patient_id uuid,
-  doctor_id uuid,
-  clinic_id uuid,
-  appointment_date timestamptz,
-  status public.appointment_status,
-  created_at timestamptz,
-  patient_full_name text,
-  patient_email text,
-  patient_phone text,
-  doctor_name text,
-  doctor_specialty text,
-  clinic_name text
+  id                 uuid,
+  patient_id         uuid,
+  doctor_id          uuid,
+  clinic_id          uuid,
+  appointment_date   timestamptz,
+  status             public.appointment_status,
+  created_at         timestamptz,
+  patient_full_name  text,
+  patient_email      text,
+  patient_phone      text,
+  doctor_name        text,
+  doctor_specialty   text,
+  clinic_name        text
 )
 language sql
 stable
@@ -184,3 +404,26 @@ $$;
 
 revoke all on function public.get_doctor_appointments(timestamptz, timestamptz) from public;
 grant execute on function public.get_doctor_appointments(timestamptz, timestamptz) to authenticated;
+
+
+-- =====================================================================
+-- SECTION G — Quick self-check (TASK 7)
+--
+-- Paste these into the SQL editor after running the migration to verify.
+-- They are commented out so the migration itself never fails on them.
+-- =====================================================================
+
+-- -- 1. Every clinic has an owner row in clinic_members?
+-- select c.id, c.name,
+--        exists(select 1 from clinic_members m
+--               where m.clinic_id = c.id and m.role='owner') as has_owner
+--   from clinics c;
+--
+-- -- 2. My memberships (run while signed in as a user):
+-- select * from clinic_members where user_id = auth.uid();
+--
+-- -- 3. My visible clinic ids (should include every clinic I own / doctor in):
+-- select * from doctor_visible_clinic_ids(auth.uid());
+--
+-- -- 4. Doctor dashboard contents for the current session:
+-- select * from get_doctor_appointments();

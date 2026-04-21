@@ -122,22 +122,57 @@ export async function getAppointmentsByRole(options?: {
   if (profile.role === "patient") {
     query = query.eq("patient_id", userData.user.id);
   } else if (profile.role === "doctor") {
-    const { data: doctorRows, error: docErr } = await supabase
-      .from("doctors")
-      .select("id")
-      .eq("profile_id", userData.user.id);
-    if (docErr) {
-      console.error("[clinica] getAppointmentsByRole doctor lookup:", docErr.message);
-      return { data: [], role: profile.role };
+    // A doctor should see every appointment they are involved with:
+    //  (1) any row in `doctors` where profile_id = me  → match by doctor_id
+    //  (2) any clinic_members row with role in (owner, doctor) → match by clinic_id
+    // We compute both sets, then filter with OR so a doctor-owner who hasn't
+    // been added to the `doctors` table yet still sees their clinic's schedule.
+    const [docRes, memberRes] = await Promise.all([
+      supabase
+        .from("doctors")
+        .select("id, clinic_id")
+        .eq("profile_id", userData.user.id),
+      supabase
+        .from("clinic_members")
+        .select("clinic_id, role")
+        .eq("user_id", userData.user.id)
+        .in("role", ["owner", "doctor"]),
+    ]);
+
+    if (docRes.error) {
+      console.error("[clinica] getAppointmentsByRole doctor lookup:", docRes.error.message);
     }
-    const ids = (doctorRows ?? []).map((r) => r.id);
-    if (ids.length === 0) {
+    if (memberRes.error) {
+      console.error("[clinica] getAppointmentsByRole member lookup:", memberRes.error.message);
+    }
+
+    const doctorIds = (docRes.data ?? []).map((r) => r.id);
+    const clinicIds = Array.from(
+      new Set<string>([
+        ...(docRes.data ?? []).map((r) => r.clinic_id),
+        ...(memberRes.data ?? []).map((r) => r.clinic_id),
+      ]),
+    );
+
+    if (doctorIds.length === 0 && clinicIds.length === 0) {
       console.warn(
-        "[clinica] getAppointmentsByRole: doctor profile has no doctors row — dashboard will be empty.",
+        "[clinica] getAppointmentsByRole: doctor profile is not linked to any clinic — dashboard will be empty.",
       );
       return { data: [], role: profile.role };
     }
-    query = query.in("doctor_id", ids);
+
+    // Supabase `or()` takes a comma-joined expression. We build it defensively
+    // so single-set cases still work.
+    const clauses: string[] = [];
+    if (doctorIds.length > 0) clauses.push(`doctor_id.in.(${doctorIds.join(",")})`);
+    if (clinicIds.length > 0) clauses.push(`clinic_id.in.(${clinicIds.join(",")})`);
+    if (clauses.length === 1) {
+      // Single clause → use native in() for clearer SQL.
+      if (doctorIds.length > 0) query = query.in("doctor_id", doctorIds);
+      else query = query.in("clinic_id", clinicIds);
+    } else {
+      query = query.or(clauses.join(","));
+    }
   }
 
   if (options?.todayOnly) {

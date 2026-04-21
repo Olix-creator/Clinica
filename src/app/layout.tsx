@@ -18,15 +18,32 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
+// Runs before first paint — sets data-theme on <html> from localStorage or OS
+// preference so there's no flash of the wrong theme. Keep this tiny and dependency-free.
+const noFlashThemeScript = `(() => {
+  try {
+    const stored = localStorage.getItem("theme");
+    const theme = stored === "light" || stored === "dark"
+      ? stored
+      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const root = document.documentElement;
+    root.setAttribute("data-theme", theme);
+    if (theme === "dark") root.classList.add("dark"); else root.classList.remove("dark");
+  } catch {}
+})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: noFlashThemeScript }} />
+      </head>
       <body
         className="min-h-full bg-surface text-on-surface font-sans"
         suppressHydrationWarning
@@ -36,7 +53,7 @@ export default function RootLayout({
         </AuthProvider>
         <Toaster
           position="top-right"
-          theme="dark"
+          theme="system"
           toastOptions={{
             style: {
               background: "var(--color-surface-container-high)",

@@ -2,13 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { getSession } from "@/lib/auth";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const { user } = await getSession();
   if (user) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface flex">
+    <div className="min-h-screen bg-surface text-on-surface flex relative">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       {/* Left brand panel */}
       <aside className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-surface-container-low">
         <div className="absolute inset-0">

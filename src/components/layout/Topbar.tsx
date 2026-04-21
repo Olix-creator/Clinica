@@ -2,6 +2,7 @@
 
 import { User } from "lucide-react";
 import NotificationBell from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 
 export default function Topbar({
   fullName,
@@ -17,6 +18,7 @@ export default function Topbar({
   return (
     <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30">
       <div className="flex items-center justify-end gap-3 px-6 sm:px-10 h-16">
+        <ThemeToggle />
         <NotificationBell role={role} />
         <div className="flex items-center gap-3 pl-3 border-l border-outline-variant/30">
           <div className="hidden sm:flex flex-col text-right">

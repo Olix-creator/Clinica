@@ -4,6 +4,7 @@ import { requireProfile } from "@/lib/auth";
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 import NotificationBell from "@/components/layout/NotificationBell";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
 
@@ -43,7 +44,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </span>
             <span className="text-base font-semibold">Lumina</span>
           </Link>
-          <NotificationBell role={profile.role} />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <NotificationBell role={profile.role} />
+          </div>
         </div>
       </div>
 

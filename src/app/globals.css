@@ -1,71 +1,74 @@
 @import "tailwindcss";
 
 /* ========================================================================
-   Lumina Clinical — Design System (dark editorial)
-   Tailwind v4 `@theme` tokens. Colors follow Material 3 tonal roles.
+   Lumina Clinical — Design System
+   Tailwind v4 `@theme inline` tokens reference runtime CSS variables so
+   the entire palette flips when `[data-theme]` changes. Components keep
+   using `bg-surface`, `text-on-surface`, etc. — no component touches
+   needed for a theme switch.
    ======================================================================== */
 
 @theme inline {
-  /* Surfaces (tonal stack from lowest/deepest → highest/brightest) */
-  --color-surface: #0f131d;
-  --color-surface-dim: #0f131d;
-  --color-surface-bright: #353944;
-  --color-surface-container-lowest: #0a0e18;
-  --color-surface-container-low: #171b26;
-  --color-surface-container: #1c1f2a;
-  --color-surface-container-high: #262a35;
-  --color-surface-container-highest: #313540;
-  --color-background: #0f131d;
+  /* Surfaces */
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-background: var(--surface);
 
-  /* Primary (emerald) */
-  --color-primary: #4edea3;
-  --color-primary-container: #10b981;
-  --color-primary-fixed: #6ffbbe;
-  --color-primary-fixed-dim: #4edea3;
-  --color-on-primary: #003824;
-  --color-on-primary-container: #00422b;
-  --color-on-primary-fixed: #002113;
-  --color-on-primary-fixed-variant: #005236;
+  /* Primary */
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary: var(--on-primary);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
 
-  /* Secondary (soft mint) */
-  --color-secondary: #9ed2b5;
-  --color-secondary-container: #21523c;
-  --color-secondary-fixed: #baeed1;
-  --color-secondary-fixed-dim: #9ed2b5;
-  --color-on-secondary: #013824;
-  --color-on-secondary-container: #91c4a8;
-  --color-on-secondary-fixed: #002113;
-  --color-on-secondary-fixed-variant: #1e4f3a;
+  /* Secondary */
+  --color-secondary: var(--secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-secondary-fixed-dim: var(--secondary-fixed-dim);
+  --color-on-secondary: var(--on-secondary);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
 
-  /* Tertiary (warm coral — urgent / waiting) */
-  --color-tertiary: #ffb3af;
-  --color-tertiary-container: #fc7c78;
-  --color-tertiary-fixed: #ffdad7;
-  --color-tertiary-fixed-dim: #ffb3af;
-  --color-on-tertiary: #650911;
-  --color-on-tertiary-container: #711419;
-  --color-on-tertiary-fixed: #410005;
-  --color-on-tertiary-fixed-variant: #842225;
+  /* Tertiary */
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-on-tertiary-fixed: var(--on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--on-tertiary-fixed-variant);
 
   /* Error */
-  --color-error: #ffb4ab;
-  --color-error-container: #93000a;
-  --color-on-error: #690005;
-  --color-on-error-container: #ffdad6;
+  --color-error: var(--error);
+  --color-error-container: var(--error-container);
+  --color-on-error: var(--on-error);
+  --color-on-error-container: var(--on-error-container);
 
   /* Neutrals */
-  --color-on-surface: #dfe2f1;
-  --color-on-surface-variant: #bbcabf;
-  --color-on-background: #dfe2f1;
-  --color-outline: #86948a;
-  --color-outline-variant: #3c4a42;
-  --color-surface-variant: #313540;
-  --color-surface-tint: #4edea3;
-  --color-inverse-surface: #dfe2f1;
-  --color-inverse-on-surface: #2c303b;
-  --color-inverse-primary: #006c49;
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-on-background: var(--on-surface);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-surface-variant: var(--surface-variant);
+  --color-surface-tint: var(--primary);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-inverse-primary: var(--inverse-primary);
 
-  /* Radii (XL corners = editorial tonal panels) */
+  /* Radii */
   --radius: 1rem;
   --radius-lg: 2rem;
   --radius-xl: 3rem;
@@ -77,6 +80,197 @@
   --font-label: var(--font-inter), "Inter", system-ui, sans-serif;
 }
 
+/* ------------------------------------------------------------------------
+   LIGHT THEME (default)
+   Warm white surfaces with a whisper of mint. Deep ink text. Emerald CTA
+   kept saturated so buttons read as actionable on both themes.
+   ------------------------------------------------------------------------ */
+:root {
+  --surface: #f7faf8;
+  --surface-dim: #eef2ef;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f1f5f2;
+  --surface-container: #e9efeb;
+  --surface-container-high: #e0e8e3;
+  --surface-container-highest: #d5dfd9;
+  --surface-variant: #dfe5e0;
+
+  --primary: #0f9d6c;
+  --primary-container: #10b981;
+  --primary-fixed: #c9f2de;
+  --primary-fixed-dim: #4edea3;
+  --on-primary: #ffffff;
+  --on-primary-container: #00422b;
+  --on-primary-fixed: #002113;
+  --on-primary-fixed-variant: #005236;
+
+  --secondary: #2e6d51;
+  --secondary-container: #c3e7d1;
+  --secondary-fixed: #baeed1;
+  --secondary-fixed-dim: #9ed2b5;
+  --on-secondary: #ffffff;
+  --on-secondary-container: #0d3c26;
+  --on-secondary-fixed: #002113;
+  --on-secondary-fixed-variant: #1e4f3a;
+
+  --tertiary: #b3261e;
+  --tertiary-container: #ffdad5;
+  --tertiary-fixed: #ffdad7;
+  --tertiary-fixed-dim: #ffb3af;
+  --on-tertiary: #ffffff;
+  --on-tertiary-container: #410005;
+  --on-tertiary-fixed: #410005;
+  --on-tertiary-fixed-variant: #842225;
+
+  --error: #b3261e;
+  --error-container: #ffdad5;
+  --on-error: #ffffff;
+  --on-error-container: #410002;
+
+  --on-surface: #0f1a16;
+  --on-surface-variant: #465950;
+  --outline: #76877d;
+  --outline-variant: #c3d1c9;
+  --inverse-surface: #1c1f2a;
+  --inverse-on-surface: #eef2ef;
+  --inverse-primary: #4edea3;
+
+  --elev-1: 0 1px 2px rgba(15, 26, 22, 0.04), 0 1px 3px rgba(15, 26, 22, 0.06);
+  --elev-2: 0 4px 14px rgba(15, 26, 22, 0.06), 0 2px 4px rgba(15, 26, 22, 0.04);
+  --elev-3: 0 16px 32px rgba(15, 26, 22, 0.08), 0 4px 8px rgba(15, 26, 22, 0.04);
+  --glow-primary: 0 8px 30px rgba(16, 185, 129, 0.28);
+  --scroll-track: #eef2ef;
+  --scroll-thumb: #c3d1c9;
+  --scroll-thumb-hover: #9fb3a8;
+}
+
+/* ------------------------------------------------------------------------
+   DARK THEME — Lumina Clinical's signature editorial blue-black stack.
+   ------------------------------------------------------------------------ */
+[data-theme="dark"] {
+  --surface: #0f131d;
+  --surface-dim: #0f131d;
+  --surface-bright: #353944;
+  --surface-container-lowest: #0a0e18;
+  --surface-container-low: #171b26;
+  --surface-container: #1c1f2a;
+  --surface-container-high: #262a35;
+  --surface-container-highest: #313540;
+  --surface-variant: #313540;
+
+  --primary: #4edea3;
+  --primary-container: #10b981;
+  --primary-fixed: #6ffbbe;
+  --primary-fixed-dim: #4edea3;
+  --on-primary: #003824;
+  --on-primary-container: #00422b;
+  --on-primary-fixed: #002113;
+  --on-primary-fixed-variant: #005236;
+
+  --secondary: #9ed2b5;
+  --secondary-container: #21523c;
+  --secondary-fixed: #baeed1;
+  --secondary-fixed-dim: #9ed2b5;
+  --on-secondary: #013824;
+  --on-secondary-container: #91c4a8;
+  --on-secondary-fixed: #002113;
+  --on-secondary-fixed-variant: #1e4f3a;
+
+  --tertiary: #ffb3af;
+  --tertiary-container: #fc7c78;
+  --tertiary-fixed: #ffdad7;
+  --tertiary-fixed-dim: #ffb3af;
+  --on-tertiary: #650911;
+  --on-tertiary-container: #711419;
+  --on-tertiary-fixed: #410005;
+  --on-tertiary-fixed-variant: #842225;
+
+  --error: #ffb4ab;
+  --error-container: #93000a;
+  --on-error: #690005;
+  --on-error-container: #ffdad6;
+
+  --on-surface: #dfe2f1;
+  --on-surface-variant: #bbcabf;
+  --outline: #86948a;
+  --outline-variant: #3c4a42;
+  --inverse-surface: #dfe2f1;
+  --inverse-on-surface: #2c303b;
+  --inverse-primary: #006c49;
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --elev-2: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --elev-3: 0 24px 48px rgba(0, 0, 0, 0.55), 0 8px 12px rgba(0, 0, 0, 0.35);
+  --glow-primary: 0 8px 30px rgba(78, 222, 163, 0.2);
+  --scroll-track: #0f131d;
+  --scroll-thumb: #313540;
+  --scroll-thumb-hover: #3c4a42;
+}
+
+/* Follow the OS preference when no explicit choice is stored yet. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --surface: #0f131d;
+    --surface-dim: #0f131d;
+    --surface-bright: #353944;
+    --surface-container-lowest: #0a0e18;
+    --surface-container-low: #171b26;
+    --surface-container: #1c1f2a;
+    --surface-container-high: #262a35;
+    --surface-container-highest: #313540;
+    --surface-variant: #313540;
+
+    --primary: #4edea3;
+    --primary-container: #10b981;
+    --primary-fixed: #6ffbbe;
+    --primary-fixed-dim: #4edea3;
+    --on-primary: #003824;
+    --on-primary-container: #00422b;
+    --on-primary-fixed: #002113;
+    --on-primary-fixed-variant: #005236;
+
+    --secondary: #9ed2b5;
+    --secondary-container: #21523c;
+    --secondary-fixed: #baeed1;
+    --secondary-fixed-dim: #9ed2b5;
+    --on-secondary: #013824;
+    --on-secondary-container: #91c4a8;
+    --on-secondary-fixed: #002113;
+    --on-secondary-fixed-variant: #1e4f3a;
+
+    --tertiary: #ffb3af;
+    --tertiary-container: #fc7c78;
+    --tertiary-fixed: #ffdad7;
+    --tertiary-fixed-dim: #ffb3af;
+    --on-tertiary: #650911;
+    --on-tertiary-container: #711419;
+    --on-tertiary-fixed: #410005;
+    --on-tertiary-fixed-variant: #842225;
+
+    --error: #ffb4ab;
+    --error-container: #93000a;
+    --on-error: #690005;
+    --on-error-container: #ffdad6;
+
+    --on-surface: #dfe2f1;
+    --on-surface-variant: #bbcabf;
+    --outline: #86948a;
+    --outline-variant: #3c4a42;
+    --inverse-surface: #dfe2f1;
+    --inverse-on-surface: #2c303b;
+    --inverse-primary: #006c49;
+
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --elev-2: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
+    --elev-3: 0 24px 48px rgba(0, 0, 0, 0.55), 0 8px 12px rgba(0, 0, 0, 0.35);
+    --glow-primary: 0 8px 30px rgba(78, 222, 163, 0.2);
+    --scroll-track: #0f131d;
+    --scroll-thumb: #313540;
+    --scroll-thumb-hover: #3c4a42;
+  }
+}
+
 html,
 body {
   background-color: var(--color-surface);
@@ -84,28 +278,42 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Native form controls should follow the active theme. */
+:root {
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
 }
 
 /* Selection */
 ::selection {
   background-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
-  color: var(--color-primary-fixed);
+  color: var(--color-on-surface);
 }
 
-/* Scrollbar (webkit) */
+/* Scrollbar (webkit) — uses the theme's tokens */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-surface);
+  background: var(--scroll-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-container-highest);
+  background: var(--scroll-thumb);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-outline-variant);
+  background: var(--scroll-thumb-hover);
 }
 
 /* ========================================================================
@@ -129,8 +337,8 @@ body {
   100% { background-position:  200% 0; }
 }
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(78, 222, 163, 0.15); }
-  50%      { box-shadow: 0 0 40px rgba(78, 222, 163, 0.35); }
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+  50%      { box-shadow: 0 0 40px rgba(16, 185, 129, 0.35); }
 }
 @keyframes checkmark {
   0%   { stroke-dashoffset: 48; opacity: 0; }
@@ -149,7 +357,7 @@ body {
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
 
-/* Skeleton shimmer — dark theme */
+/* Skeleton shimmer — adapts to theme via tokens */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -162,20 +370,22 @@ body {
   border-radius: var(--radius);
 }
 
-/* Glass (used sparingly on floating nav / header only) */
+/* Glass (floating nav / header) */
 .glass {
   background: color-mix(in oklab, var(--color-surface-container-high) 80%, transparent);
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
-/* Utility: subtle emerald glow ring used on primary CTAs */
+/* Emerald CTA glow — strength adapts to theme */
 .shadow-emerald {
-  box-shadow: 0 8px 30px rgba(78, 222, 163, 0.2);
+  box-shadow: var(--glow-primary);
 }
 .shadow-deep {
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--elev-3);
 }
+.shadow-elev-1 { box-shadow: var(--elev-1); }
+.shadow-elev-2 { box-shadow: var(--elev-2); }
 
 /* Hide scrollbar utility (used in receptionist filter chips) */
 .hide-scrollbar::-webkit-scrollbar { display: none; }

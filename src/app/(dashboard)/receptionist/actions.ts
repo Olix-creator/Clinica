@@ -43,6 +43,7 @@ export async function attachDoctorAction(formData: FormData): Promise<Result> {
   const clinicId = String(formData.get("clinicId") ?? "");
   const doctorEmail = String(formData.get("doctorEmail") ?? "").trim();
   const specialty = String(formData.get("specialty") ?? "").trim() || undefined;
+  const name = String(formData.get("name") ?? "").trim() || undefined;
 
   if (!clinicId) return { ok: false, error: "Please select a clinic" };
   if (!doctorEmail) return { ok: false, error: "Doctor email is required" };
@@ -54,16 +55,24 @@ export async function attachDoctorAction(formData: FormData): Promise<Result> {
     .ilike("email", doctorEmail)
     .maybeSingle();
   if (profileErr) return { ok: false, error: profileErr.message };
-  if (!profile) return { ok: false, error: "No user found with that email" };
-  if (profile.role !== "doctor") return { ok: false, error: "That user is not a doctor" };
+  if (!profile) return { ok: false, error: "No user found with that email. Ask them to sign up first." };
+  if (profile.role !== "doctor") return { ok: false, error: "That user is not registered as a doctor" };
 
   const { error } = await addDoctorToClinic({
     profileId: profile.id,
     clinicId,
     specialty,
+    name,
   });
-  if (error) return { ok: false, error };
+  if (error) {
+    // Friendly message if the doctor is already attached (unique constraint on profile_id).
+    if (error.includes("doctors_profile_id_key") || error.includes("unique")) {
+      return { ok: false, error: "That doctor is already attached to a clinic." };
+    }
+    return { ok: false, error };
+  }
 
   revalidatePath("/receptionist");
+  revalidatePath("/booking");
   return { ok: true };
 }

@@ -1,13 +1,11 @@
-import Link from "next/link";
 import {
-  Stethoscope,
   Building2,
-  User,
   Clock,
   CalendarDays,
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  Phone,
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { getDoctorByProfile } from "@/lib/data/doctors";
@@ -15,6 +13,14 @@ import { getAppointmentsByRole, type AppointmentWithRelations } from "@/lib/data
 import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
 import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
+
+function patientLabel(a: AppointmentWithRelations): string {
+  return a.patient?.full_name ?? a.patient?.email ?? "Patient";
+}
+
+function doctorLabel(profileFullName: string | null, doctorName: string | null): string {
+  return doctorName ?? profileFullName ?? "Doctor";
+}
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -57,13 +63,31 @@ export default async function DoctorPage() {
     );
   }
 
-  const { data: appointments } = await getAppointmentsByRole({ todayOnly: true });
+  // Today's list (used by the schedule section) + all appointments for Upcoming (next 14 days).
+  const { data: todayAppointments } = await getAppointmentsByRole({ todayOnly: true });
+  const { data: allAppointments } = await getAppointmentsByRole();
 
-  const pending = appointments.filter((a) => a.status === "pending");
-  const doneCount = appointments.filter((a) => a.status === "done").length;
-  const priority = appointments
+  const now = Date.now();
+  const twoWeeks = now + 14 * 24 * 60 * 60 * 1000;
+  const startOfTomorrow = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    return d.getTime();
+  })();
+
+  const upcoming = allAppointments.filter((a) => {
+    const t = new Date(a.appointment_date).getTime();
+    return t >= startOfTomorrow && t <= twoWeeks && a.status !== "cancelled";
+  });
+
+  const pending = todayAppointments.filter((a) => a.status === "pending");
+  const doneCount = todayAppointments.filter((a) => a.status === "done").length;
+  const priority = [...todayAppointments, ...upcoming]
     .filter((a) => a.status === "pending" || a.status === "confirmed")
     .slice(0, 4);
+
+  const doctorDisplay = doctorLabel(profile.full_name, doctor.name);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
@@ -73,7 +97,7 @@ export default async function DoctorPage() {
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Today&rsquo;s shift</p>
           <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
-            Welcome, Dr. {profile.full_name?.split(" ").slice(-1)[0] ?? profile.full_name ?? ""}.
+            Welcome, {doctorDisplay}.
           </h1>
           <p className="text-on-surface-variant mt-2">
             {fmtDate(new Date().toISOString())}
@@ -85,15 +109,18 @@ export default async function DoctorPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Scheduled", value: appointments.length, icon: CalendarDays },
+          { label: "Today", value: todayAppointments.length, icon: CalendarDays },
           { label: "Pending", value: pending.length, icon: AlertCircle },
           { label: "Completed", value: doneCount, icon: CheckCircle2 },
           {
             label: "Next slot",
-            value: appointments.find((a) => new Date(a.appointment_date).getTime() >= Date.now())
+            value: todayAppointments.find(
+              (a) => new Date(a.appointment_date).getTime() >= Date.now(),
+            )
               ? fmtTime(
-                  appointments.find((a) => new Date(a.appointment_date).getTime() >= Date.now())!
-                    .appointment_date
+                  todayAppointments.find(
+                    (a) => new Date(a.appointment_date).getTime() >= Date.now(),
+                  )!.appointment_date
                 )
               : "—",
             icon: Clock,
@@ -117,14 +144,14 @@ export default async function DoctorPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Today&rsquo;s schedule</p>
               <h2 className="font-headline text-xl font-semibold mt-1">Your appointments</h2>
             </div>
-            <span className="text-xs text-on-surface-variant">{appointments.length} total</span>
+            <span className="text-xs text-on-surface-variant">{todayAppointments.length} total</span>
           </div>
 
-          {appointments.length === 0 ? (
+          {todayAppointments.length === 0 ? (
             <EmptyState icon={CalendarDays} title="No appointments today" description="Enjoy the calm." />
           ) : (
             <div className="space-y-2">
-              {appointments.map((a) => {
+              {todayAppointments.map((a) => {
                 const state = stateForAppt(a);
                 const indicator =
                   state === "active"
@@ -151,11 +178,15 @@ export default async function DoctorPage() {
                       </p>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
-                        {a.patient?.full_name ?? a.patient?.email ?? "Patient"}
-                      </p>
-                      <p className="text-xs text-on-surface-variant truncate">
-                        {a.clinic?.name ?? "Clinic"}
+                      <p className="font-medium truncate">{patientLabel(a)}</p>
+                      <p className="text-xs text-on-surface-variant truncate flex items-center gap-2">
+                        <span>{a.clinic?.name ?? "Clinic"}</span>
+                        {a.patient?.phone && (
+                          <span className="inline-flex items-center gap-1 text-primary">
+                            <Phone className="w-3 h-3" />
+                            {a.patient.phone}
+                          </span>
+                        )}
                       </p>
                     </div>
                     <AppointmentStatusActions id={a.id} revalidate="/doctor" />
@@ -195,9 +226,7 @@ export default async function DoctorPage() {
                     }`}
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {a.patient?.full_name ?? a.patient?.email ?? "Patient"}
-                    </p>
+                    <p className="text-sm font-medium truncate">{patientLabel(a)}</p>
                     <p className="text-xs text-on-surface-variant mt-0.5">
                       {fmtTime(a.appointment_date)} · {a.status}
                     </p>
@@ -209,6 +238,50 @@ export default async function DoctorPage() {
           )}
         </aside>
       </div>
+
+      {/* Upcoming (next 14 days, excluding today) */}
+      <section className="rounded-[2rem] bg-surface-container-low p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Next 14 days</p>
+            <h2 className="font-headline text-xl font-semibold mt-1">Upcoming appointments</h2>
+          </div>
+          <span className="text-xs text-on-surface-variant">{upcoming.length} total</span>
+        </div>
+        {upcoming.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="No upcoming appointments"
+            description="New bookings will appear here automatically."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {upcoming.slice(0, 10).map((a) => (
+              <div
+                key={a.id}
+                className="flex items-start gap-3 p-4 rounded-2xl bg-surface-container hover:bg-surface-container-highest transition"
+              >
+                <span className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <CalendarDays className="w-4 h-4 text-primary" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{patientLabel(a)}</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">
+                    {fmtDate(a.appointment_date)} · {fmtTime(a.appointment_date)}
+                  </p>
+                  {a.patient?.phone && (
+                    <p className="text-xs text-primary mt-1 inline-flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {a.patient.phone}
+                    </p>
+                  )}
+                </div>
+                <AppointmentStatusActions id={a.id} revalidate="/doctor" />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { listClinics } from "@/lib/data/clinics";
 import { BookingForm } from "@/components/booking/BookingForm";
 import { bookAppointment } from "./actions";
 
 export default async function BookingPage() {
-  await requireRole("patient");
+  const profile = await requireRole("patient");
   const clinics = await listClinics();
+
+  // Pre-fill the booking phone with whatever we already have on file.
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("id", profile.id)
+    .maybeSingle();
+  const initialPhone = row?.phone ?? "";
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in-up">
@@ -28,7 +38,7 @@ export default async function BookingPage() {
       </div>
 
       <div className="rounded-[2rem] bg-surface-container-lowest p-6 sm:p-8 ring-1 ring-outline-variant/30">
-        <BookingForm clinics={clinics} action={bookAppointment} />
+        <BookingForm clinics={clinics} action={bookAppointment} initialPhone={initialPhone} />
       </div>
     </div>
   );

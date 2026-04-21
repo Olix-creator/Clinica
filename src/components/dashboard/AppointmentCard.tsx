@@ -1,4 +1,4 @@
-import { Calendar, Clock, Stethoscope, Building2, User } from "lucide-react";
+import { Calendar, Clock, Stethoscope, Building2, User, Phone } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import type { AppointmentWithRelations } from "@/lib/data/appointments";
 
@@ -23,8 +23,12 @@ export function AppointmentCard({
 }) {
   const { date, time } = formatDateTime(appointment.appointment_date);
   const doctorName =
-    appointment.doctor?.profile?.full_name ?? appointment.doctor?.profile?.email ?? "Doctor";
+    appointment.doctor?.name ??
+    appointment.doctor?.profile?.full_name ??
+    appointment.doctor?.profile?.email ??
+    "Doctor";
   const patientName = appointment.patient?.full_name ?? appointment.patient?.email ?? "Patient";
+  const patientPhone = appointment.patient?.phone ?? null;
   const clinicName = appointment.clinic?.name ?? "Clinic";
 
   const base =
@@ -60,6 +64,12 @@ export function AppointmentCard({
               <span className="inline-flex items-center gap-1.5">
                 <User className="w-4 h-4 text-on-surface-variant/70" />
                 <span className="text-on-surface">{patientName}</span>
+              </span>
+            )}
+            {perspective !== "patient" && patientPhone && (
+              <span className="inline-flex items-center gap-1.5 text-primary">
+                <Phone className="w-4 h-4" />
+                {patientPhone}
               </span>
             )}
             <span className="inline-flex items-center gap-1.5">

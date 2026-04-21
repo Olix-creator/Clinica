@@ -11,9 +11,14 @@ import { addAppointmentAction } from "@/app/(dashboard)/receptionist/actions";
 type Clinic = { id: string; name: string };
 type Doctor = {
   id: string;
+  name: string | null;
   specialty: string | null;
   profile: { full_name: string | null; email: string | null } | null;
 };
+
+function doctorLabel(d: Doctor): string {
+  return d.name ?? d.profile?.full_name ?? d.profile?.email ?? "Unnamed doctor";
+}
 
 const INPUT =
   "w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:dark]";
@@ -46,7 +51,7 @@ export function AddAppointmentModal({ clinics }: { clinics: Clinic[] }) {
     const supabase = createClient();
     supabase
       .from("doctors")
-      .select("id, specialty, profile:profiles!doctors_profile_id_fkey(full_name, email)")
+      .select("id, name, specialty, profile:profiles!doctors_profile_id_fkey(full_name, email)")
       .eq("clinic_id", clinicId)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -147,7 +152,7 @@ export function AddAppointmentModal({ clinics }: { clinics: Clinic[] }) {
               </option>
               {doctors.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.profile?.full_name ?? d.profile?.email ?? "Unnamed doctor"}
+                  {doctorLabel(d)}
                   {d.specialty ? ` — ${d.specialty}` : ""}
                 </option>
               ))}

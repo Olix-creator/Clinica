@@ -45,13 +45,16 @@ export function AppointmentsTable({ appointments }: { appointments: AppointmentW
           </div>
           <div className="md:col-span-2 text-sm truncate">{a.clinic?.name ?? "—"}</div>
           <div className="md:col-span-3 text-sm truncate">
-            {a.doctor?.profile?.full_name ?? a.doctor?.profile?.email ?? "—"}
+            {a.doctor?.name ?? a.doctor?.profile?.full_name ?? a.doctor?.profile?.email ?? "—"}
             {a.doctor?.specialty && (
               <span className="text-on-surface-variant"> · {a.doctor.specialty}</span>
             )}
           </div>
           <div className="md:col-span-3 text-sm truncate">
-            {a.patient?.full_name ?? a.patient?.email ?? "—"}
+            <p className="truncate">{a.patient?.full_name ?? a.patient?.email ?? "—"}</p>
+            {a.patient?.phone && (
+              <p className="text-xs text-primary truncate">{a.patient.phone}</p>
+            )}
           </div>
           <div className="md:col-span-2 md:text-right">
             <StatusBadge status={a.status} />

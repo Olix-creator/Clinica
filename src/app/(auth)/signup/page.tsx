@@ -14,6 +14,7 @@ import {
   ClipboardList,
   ArrowLeft,
   CheckCircle2,
+  Phone,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -29,6 +30,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("patient");
   const [showPassword, setShowPassword] = useState(false);
@@ -42,11 +44,21 @@ export default function SignupPage() {
     setError("");
     const supabase = createClient();
 
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone) {
+      const digits = trimmedPhone.replace(/\D/g, "");
+      if (digits.length < 7 || digits.length > 20) {
+        setError("Please enter a valid phone number.");
+        setLoading(false);
+        return;
+      }
+    }
+
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, role },
+        data: { full_name: fullName, role, phone: trimmedPhone || null },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
@@ -125,6 +137,19 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@clinic.com"
             disabled={loading}
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+          />
+        </div>
+
+        <div className="relative">
+          <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone number (optional)"
+            disabled={loading}
+            autoComplete="tel"
             className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
           />
         </div>

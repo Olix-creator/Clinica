@@ -7,15 +7,42 @@ export type Appointment = Database["public"]["Tables"]["appointments"]["Row"];
 export type AppointmentWithRelations = Appointment & {
   doctor: {
     id: string;
+    name: string | null;
     specialty: string | null;
     profile: { id: string; full_name: string | null; email: string | null } | null;
   } | null;
   clinic: { id: string; name: string } | null;
-  patient: { id: string; full_name: string | null; email: string | null } | null;
+  patient: {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
 };
 
 const SELECT_WITH_RELATIONS =
-  "*, doctor:doctors(id, specialty, profile:profiles!doctors_profile_id_fkey(id, full_name, email)), clinic:clinics(id, name), patient:profiles!appointments_patient_id_fkey(id, full_name, email)";
+  "*, doctor:doctors(id, name, specialty, profile:profiles!doctors_profile_id_fkey(id, full_name, email)), clinic:clinics(id, name), patient:profiles!appointments_patient_id_fkey(id, full_name, email, phone)";
+
+export function isValidPhone(raw: string): boolean {
+  // Accept +, digits, spaces, dashes, parens. Require 7–20 total digits.
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 20;
+}
+
+export async function updateProfilePhone(phone: string): Promise<{ error: string | null }> {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { error: "Not authenticated" };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ phone: phone.trim() || null })
+    .eq("id", userData.user.id);
+  if (error) {
+    console.error("[clinica] updateProfilePhone:", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
 
 export async function createAppointment({
   doctorId,
@@ -64,7 +91,11 @@ export async function createAppointment({
     .single();
 
   if (error) {
-    console.error("[clinica] createAppointment insert:", error.message);
+    console.error("[clinica] createAppointment insert:", error.message, error.code);
+    // 23505 = unique_violation (double-booking partial index)
+    if (error.code === "23505") {
+      return { data: null, error: "That time slot is already taken. Please pick another." };
+    }
     return { data: null, error: error.message };
   }
   return { data, error: null };
@@ -91,13 +122,22 @@ export async function getAppointmentsByRole(options?: {
   if (profile.role === "patient") {
     query = query.eq("patient_id", userData.user.id);
   } else if (profile.role === "doctor") {
-    const { data: doctorRow } = await supabase
+    const { data: doctorRows, error: docErr } = await supabase
       .from("doctors")
       .select("id")
-      .eq("profile_id", userData.user.id)
-      .maybeSingle();
-    if (!doctorRow) return { data: [], role: profile.role };
-    query = query.eq("doctor_id", doctorRow.id);
+      .eq("profile_id", userData.user.id);
+    if (docErr) {
+      console.error("[clinica] getAppointmentsByRole doctor lookup:", docErr.message);
+      return { data: [], role: profile.role };
+    }
+    const ids = (doctorRows ?? []).map((r) => r.id);
+    if (ids.length === 0) {
+      console.warn(
+        "[clinica] getAppointmentsByRole: doctor profile has no doctors row — dashboard will be empty.",
+      );
+      return { data: [], role: profile.role };
+    }
+    query = query.in("doctor_id", ids);
   }
 
   if (options?.todayOnly) {

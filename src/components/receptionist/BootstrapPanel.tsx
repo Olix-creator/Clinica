@@ -93,7 +93,7 @@ export function BootstrapPanel({ clinics }: { clinics: Clinic[] }) {
             </p>
             <form
               onSubmit={submit(attachDoctorAction, "Doctor attached to clinic")}
-              className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]"
+              className="grid gap-2 sm:grid-cols-2"
             >
               <select
                 name="clinicId"
@@ -117,16 +117,30 @@ export function BootstrapPanel({ clinics }: { clinics: Clinic[] }) {
                 required
               />
               <input
-                name="specialty"
-                placeholder="Specialty (optional)"
+                name="name"
+                placeholder="Display name (e.g. Dr. Sarah Chen)"
                 className={INPUT}
                 disabled={pending}
               />
-              <button type="submit" disabled={pending} className={BTN}>
+              <input
+                name="specialty"
+                placeholder="Specialty (e.g. Cardiology)"
+                className={INPUT}
+                disabled={pending}
+              />
+              <button
+                type="submit"
+                disabled={pending}
+                className={`${BTN} sm:col-span-2`}
+              >
                 {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                Attach
+                Attach doctor
               </button>
             </form>
+            <p className="text-xs text-on-surface-variant mt-3 ml-1">
+              The doctor must have already signed up. Name overrides their profile
+              name for display in the booking flow. Specialty and name are editable later.
+            </p>
           </div>
         </div>
       )}

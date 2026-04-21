@@ -44,9 +44,10 @@ export default function OnboardingPage() {
     const supabase = createClient();
     const fullName =
       (user.user_metadata?.full_name as string | undefined) ?? user.email?.split("@")[0] ?? null;
+    const metaPhone = (user.user_metadata?.phone as string | undefined) ?? null;
     const { error: insertError } = await supabase
       .from("profiles")
-      .insert({ id: user.id, email: user.email ?? null, full_name: fullName, role });
+      .insert({ id: user.id, email: user.email ?? null, full_name: fullName, phone: metaPhone, role });
     if (insertError) {
       console.error("[lumina] onboarding insert error:", insertError.message);
       setError("Could not save your role. Please try again.");

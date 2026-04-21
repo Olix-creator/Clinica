@@ -67,18 +67,21 @@ export type Database = {
         Row: {
           clinic_id: string
           id: string
+          name: string | null
           profile_id: string
           specialty: string | null
         }
         Insert: {
           clinic_id: string
           id?: string
+          name?: string | null
           profile_id: string
           specialty?: string | null
         }
         Update: {
           clinic_id?: string
           id?: string
+          name?: string | null
           profile_id?: string
           specialty?: string | null
         }
@@ -90,6 +93,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          phone: string | null
           role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
@@ -97,6 +101,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
         }
         Update: {
@@ -104,6 +109,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []

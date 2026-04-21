@@ -74,7 +74,7 @@ export default async function PatientPage() {
                   </div>
                   <div>
                     <h2 className="font-headline text-2xl font-semibold tracking-tight">
-                      {next.doctor?.profile?.full_name ?? "Your doctor"}
+                      {next.doctor?.name ?? next.doctor?.profile?.full_name ?? "Your doctor"}
                     </h2>
                     <p className="text-on-surface-variant">
                       {next.doctor?.specialty ?? "General Practice"} · {next.clinic?.name ?? "Clinic"}

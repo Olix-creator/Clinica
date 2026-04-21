@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Phone,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { BookAppointmentResult } from "@/app/(dashboard)/booking/actions";
@@ -18,9 +19,19 @@ import type { BookAppointmentResult } from "@/app/(dashboard)/booking/actions";
 type Clinic = { id: string; name: string };
 type Doctor = {
   id: string;
+  name: string | null;
   specialty: string | null;
   profile: { full_name: string | null; email: string | null } | null;
 };
+
+function isValidPhone(raw: string): boolean {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 20;
+}
+
+function doctorDisplayName(d: Doctor): string {
+  return d.name ?? d.profile?.full_name ?? d.profile?.email ?? "Unnamed doctor";
+}
 
 const STEPS = [
   { n: 1, label: "Clinic", icon: Building2 },
@@ -39,20 +50,24 @@ function minLocalDateTime() {
 export function BookingForm({
   clinics,
   action,
+  initialPhone = "",
 }: {
   clinics: Clinic[];
   action: (formData: FormData) => Promise<BookAppointmentResult>;
+  initialPhone?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [clinicId, setClinicId] = useState("");
   const [doctorId, setDoctorId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const phoneOk = phone.trim() !== "" && isValidPhone(phone);
 
   useEffect(() => {
     if (!clinicId) {
@@ -65,7 +80,7 @@ export function BookingForm({
     const supabase = createClient();
     supabase
       .from("doctors")
-      .select("id, specialty, profile:profiles!doctors_profile_id_fkey(full_name, email)")
+      .select("id, name, specialty, profile:profiles!doctors_profile_id_fkey(full_name, email)")
       .eq("clinic_id", clinicId)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -84,10 +99,16 @@ export function BookingForm({
 
   function submit() {
     setError(null);
+    if (!phoneOk) {
+      setError("Please enter a valid phone number.");
+      toast.error("Please enter a valid phone number.");
+      return;
+    }
     const fd = new FormData();
     fd.set("clinicId", clinicId);
     fd.set("doctorId", doctorId);
     fd.set("appointmentDate", appointmentDate);
+    fd.set("phone", phone.trim());
     startTransition(async () => {
       const res = await action(fd);
       if (res.ok) {
@@ -231,7 +252,7 @@ export function BookingForm({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {doctors.map((d) => {
                 const active = d.id === doctorId;
-                const name = d.profile?.full_name ?? d.profile?.email ?? "Unnamed doctor";
+                const name = doctorDisplayName(d);
                 return (
                   <button
                     key={d.id}
@@ -267,28 +288,57 @@ export function BookingForm({
         </div>
       )}
 
-      {/* Step 3: Date & time */}
+      {/* Step 3: Date & time + phone */}
       {step === 3 && (
         <div className="space-y-4">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-1">Step 3</p>
-            <h2 className="font-headline text-2xl font-semibold">Pick a time.</h2>
+            <h2 className="font-headline text-2xl font-semibold">When &amp; how to reach you.</h2>
           </div>
-          <div className="rounded-2xl bg-surface-container-low p-6">
-            <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
-              Date & time
-            </label>
-            <input
-              type="datetime-local"
-              value={appointmentDate}
-              onChange={(e) => setAppointmentDate(e.target.value)}
-              min={minLocalDateTime()}
-              className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-4 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:dark]"
-              required
-            />
-            <p className="text-xs text-on-surface-variant mt-3">
-              Only future times are allowed. You&apos;ll be reminded 24 hours before.
-            </p>
+          <div className="rounded-2xl bg-surface-container-low p-6 space-y-5">
+            <div>
+              <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
+                Date &amp; time
+              </label>
+              <input
+                type="datetime-local"
+                value={appointmentDate}
+                onChange={(e) => setAppointmentDate(e.target.value)}
+                min={minLocalDateTime()}
+                className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-4 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:dark]"
+                required
+              />
+              <p className="text-xs text-on-surface-variant mt-2">
+                Only future times are allowed.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
+                Phone number
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 555 123 4567"
+                  autoComplete="tel"
+                  required
+                  className="w-full pl-11 pr-4 py-4 rounded-xl bg-surface-container-highest border-0 text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition"
+                />
+              </div>
+              <p
+                className={`text-xs mt-2 ${
+                  phone && !phoneOk ? "text-error" : "text-on-surface-variant"
+                }`}
+              >
+                {phone && !phoneOk
+                  ? "That doesn't look like a valid phone number."
+                  : "So the clinic can reach you if plans change."}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -305,7 +355,7 @@ export function BookingForm({
               { label: "Clinic", value: selectedClinic?.name, icon: Building2 },
               {
                 label: "Doctor",
-                value: selectedDoctor?.profile?.full_name ?? selectedDoctor?.profile?.email,
+                value: selectedDoctor ? doctorDisplayName(selectedDoctor) : undefined,
                 sub: selectedDoctor?.specialty,
                 icon: Stethoscope,
               },
@@ -321,6 +371,11 @@ export function BookingForm({
                     })
                   : "—",
                 icon: CalendarClock,
+              },
+              {
+                label: "Phone",
+                value: phone || "—",
+                icon: Phone,
               },
             ].map((row) => (
               <div key={row.label} className="flex items-start gap-4 py-2">
@@ -360,7 +415,7 @@ export function BookingForm({
               pending ||
               (step === 1 && !clinicId) ||
               (step === 2 && !doctorId) ||
-              (step === 3 && !appointmentDate)
+              (step === 3 && (!appointmentDate || !phoneOk))
             }
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold text-sm shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed"
           >

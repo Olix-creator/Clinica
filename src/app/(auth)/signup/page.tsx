@@ -3,15 +3,26 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Briefcase, Mail, Lock, User, Eye, EyeOff, Loader2, Stethoscope, ClipboardList } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  Loader2,
+  Stethoscope,
+  ClipboardList,
+  ArrowLeft,
+  CheckCircle2,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "patient" | "doctor" | "receptionist";
 
-const ROLES: { value: Role; label: string; icon: typeof User }[] = [
-  { value: "patient", label: "Patient", icon: User },
-  { value: "doctor", label: "Doctor", icon: Stethoscope },
-  { value: "receptionist", label: "Receptionist", icon: ClipboardList },
+const ROLES: { value: Role; label: string; icon: typeof User; description: string }[] = [
+  { value: "patient", label: "Patient", icon: User, description: "Book visits" },
+  { value: "doctor", label: "Doctor", icon: Stethoscope, description: "See today's schedule" },
+  { value: "receptionist", label: "Reception", icon: ClipboardList, description: "Run the clinic" },
 ];
 
 export default function SignupPage() {
@@ -41,7 +52,7 @@ export default function SignupPage() {
     });
 
     if (signUpError) {
-      console.error("[clinica] signup error:", signUpError.message);
+      console.error("[lumina] signup error:", signUpError.message);
       setError(signUpError.message);
       setLoading(false);
       return;
@@ -56,134 +67,138 @@ export default function SignupPage() {
     }
   }
 
-  return (
-    <div className="relative z-10 w-full max-w-sm">
-      <div className="text-center mb-8">
-        <Link href="/" className="inline-flex flex-col items-center gap-3">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-xl shadow-primary/30">
-            <Briefcase className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">Clinica</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Create your account</p>
-          </div>
+  if (emailConfirmSent) {
+    return (
+      <div className="animate-fade-in-up text-center">
+        <div className="w-16 h-16 rounded-2xl bg-secondary-container/30 flex items-center justify-center mx-auto mb-6">
+          <CheckCircle2 className="w-8 h-8 text-primary" />
+        </div>
+        <h2 className="font-headline text-3xl font-semibold tracking-tight mb-3">Check your inbox.</h2>
+        <p className="text-on-surface-variant mb-8">
+          We&apos;ve sent a confirmation link to <span className="text-on-surface">{email}</span>. Confirm it to finish
+          setting up your account.
+        </p>
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 transition"
+        >
+          Go to sign in
         </Link>
       </div>
+    );
+  }
 
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-        {emailConfirmSent ? (
-          <div className="text-center space-y-4">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
-              Check your email to confirm your account, then sign in.
-            </div>
-            <Link href="/login" className="inline-block text-primary font-semibold hover:underline">
-              Go to login →
-            </Link>
-          </div>
-        ) : (
-          <>
-            <h2 className="text-lg font-bold text-gray-900 text-center mb-1">Sign up</h2>
-            <p className="text-sm text-gray-500 text-center mb-6">Pick your role to get started</p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Full name"
-                  disabled={loading}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60"
-                />
-              </div>
-
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email"
-                  disabled={loading}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60"
-                />
-              </div>
-
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password (min 6 chars)"
-                  disabled={loading}
-                  className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-2">I am a:</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {ROLES.map(({ value, label, icon: Icon }) => {
-                    const selected = role === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setRole(value)}
-                        disabled={loading}
-                        className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 transition-all disabled:opacity-60 cursor-pointer ${
-                          selected
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span className="text-xs font-semibold">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create account"}
-              </button>
-            </form>
-
-            <p className="text-center text-sm text-gray-500 mt-5">
-              Already have an account?{" "}
-              <Link href="/login" className="text-primary font-semibold hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </>
-        )}
+  return (
+    <div className="animate-fade-in-up">
+      <div className="mb-8">
+        <p className="text-xs uppercase tracking-[0.2em] text-primary mb-3">Create account</p>
+        <h2 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">Join Lumina.</h2>
+        <p className="text-on-surface-variant mt-3">Ten seconds to a calmer clinic.</p>
       </div>
 
-      <div className="text-center mt-6">
-        <Link href="/" className="text-sm text-gray-400 hover:text-primary transition-colors">
-          ← Back to home
+      {error && (
+        <div className="mb-5 px-4 py-3 rounded-xl bg-error-container/30 text-error border border-error/30 text-sm">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="relative">
+          <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          <input
+            type="text"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Full name"
+            disabled={loading}
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+          />
+        </div>
+
+        <div className="relative">
+          <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@clinic.com"
+            disabled={loading}
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+          />
+        </div>
+
+        <div className="relative">
+          <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          <input
+            type={showPassword ? "text" : "password"}
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min 6 chars)"
+            disabled={loading}
+            className="w-full pl-12 pr-12 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 ml-1">I am a</p>
+          <div className="grid grid-cols-3 gap-2">
+            {ROLES.map(({ value, label, icon: Icon, description }) => {
+              const selected = role === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setRole(value)}
+                  disabled={loading}
+                  className={`flex flex-col items-center gap-1.5 py-4 px-2 rounded-xl transition active:scale-[0.98] disabled:opacity-60 ${
+                    selected
+                      ? "bg-primary/15 ring-2 ring-primary text-on-surface"
+                      : "bg-surface-container-highest ring-1 ring-transparent hover:ring-outline-variant text-on-surface-variant"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${selected ? "text-primary" : ""}`} />
+                  <span className="text-sm font-medium">{label}</span>
+                  <span className="text-[10px] text-on-surface-variant">{description}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full mt-2 py-4 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create account"}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-on-surface-variant mt-8">
+        Already have an account?{" "}
+        <Link href="/login" className="text-primary font-medium hover:underline">
+          Sign in
+        </Link>
+      </p>
+
+      <div className="mt-8 text-center">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-on-surface transition"
+        >
+          <ArrowLeft className="w-3 h-3" />
+          Back to home
         </Link>
       </div>
     </div>

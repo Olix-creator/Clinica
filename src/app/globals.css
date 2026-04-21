@@ -1,106 +1,182 @@
 @import "tailwindcss";
 
+/* ========================================================================
+   Lumina Clinical — Design System (dark editorial)
+   Tailwind v4 `@theme` tokens. Colors follow Material 3 tonal roles.
+   ======================================================================== */
+
 @theme inline {
-  --color-primary: #2563EB;
-  --color-primary-dark: #1D4ED8;
-  --color-primary-light: #DBEAFE;
-  --color-success: #22C55E;
-  --color-success-light: #DCFCE7;
-  --color-warning: #F59E0B;
-  --color-warning-light: #FEF3C7;
-  --color-danger: #EF4444;
-  --color-danger-light: #FEE2E2;
-  --color-gray-bg: #F3F4F6;
-  --color-gray-bg-light: #F9FAFB;
-  --font-sans: 'Inter', sans-serif;
+  /* Surfaces (tonal stack from lowest/deepest → highest/brightest) */
+  --color-surface: #0f131d;
+  --color-surface-dim: #0f131d;
+  --color-surface-bright: #353944;
+  --color-surface-container-lowest: #0a0e18;
+  --color-surface-container-low: #171b26;
+  --color-surface-container: #1c1f2a;
+  --color-surface-container-high: #262a35;
+  --color-surface-container-highest: #313540;
+  --color-background: #0f131d;
+
+  /* Primary (emerald) */
+  --color-primary: #4edea3;
+  --color-primary-container: #10b981;
+  --color-primary-fixed: #6ffbbe;
+  --color-primary-fixed-dim: #4edea3;
+  --color-on-primary: #003824;
+  --color-on-primary-container: #00422b;
+  --color-on-primary-fixed: #002113;
+  --color-on-primary-fixed-variant: #005236;
+
+  /* Secondary (soft mint) */
+  --color-secondary: #9ed2b5;
+  --color-secondary-container: #21523c;
+  --color-secondary-fixed: #baeed1;
+  --color-secondary-fixed-dim: #9ed2b5;
+  --color-on-secondary: #013824;
+  --color-on-secondary-container: #91c4a8;
+  --color-on-secondary-fixed: #002113;
+  --color-on-secondary-fixed-variant: #1e4f3a;
+
+  /* Tertiary (warm coral — urgent / waiting) */
+  --color-tertiary: #ffb3af;
+  --color-tertiary-container: #fc7c78;
+  --color-tertiary-fixed: #ffdad7;
+  --color-tertiary-fixed-dim: #ffb3af;
+  --color-on-tertiary: #650911;
+  --color-on-tertiary-container: #711419;
+  --color-on-tertiary-fixed: #410005;
+  --color-on-tertiary-fixed-variant: #842225;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  /* Neutrals */
+  --color-on-surface: #dfe2f1;
+  --color-on-surface-variant: #bbcabf;
+  --color-on-background: #dfe2f1;
+  --color-outline: #86948a;
+  --color-outline-variant: #3c4a42;
+  --color-surface-variant: #313540;
+  --color-surface-tint: #4edea3;
+  --color-inverse-surface: #dfe2f1;
+  --color-inverse-on-surface: #2c303b;
+  --color-inverse-primary: #006c49;
+
+  /* Radii (XL corners = editorial tonal panels) */
+  --radius: 1rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+
+  /* Typography */
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-headline: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-body: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-label: var(--font-inter), "Inter", system-ui, sans-serif;
 }
 
+html,
 body {
-  background: #F9FAFB;
-  color: #111827;
-  font-family: 'Inter', sans-serif;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* =============================================
+/* Selection */
+::selection {
+  background-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+  color: var(--color-primary-fixed);
+}
+
+/* Scrollbar (webkit) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-container-highest);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline-variant);
+}
+
+/* ========================================================================
    Animations
-   ============================================= */
+   ======================================================================== */
 
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0);    }
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-24px); }
-  to   { opacity: 1; transform: translateX(0);     }
-}
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(24px); }
-  to   { opacity: 1; transform: translateX(0);    }
-}
-
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1);    }
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
-
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
-}
-
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(78, 222, 163, 0.15); }
+  50%      { box-shadow: 0 0 40px rgba(78, 222, 163, 0.35); }
+}
+@keyframes checkmark {
+  0%   { stroke-dashoffset: 48; opacity: 0; }
+  60%  { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
 
-/* Utility animation classes */
-.animate-fade-in        { animation: fadeIn      0.6s ease forwards; }
-.animate-fade-in-up     { animation: fadeInUp    0.7s ease forwards; }
-.animate-slide-in-left  { animation: slideInLeft 0.7s ease forwards; }
-.animate-slide-in-right { animation: slideInRight 0.7s ease forwards; }
-.animate-scale-in       { animation: scaleIn     0.5s ease forwards; }
-.animate-float          { animation: float       3s ease-in-out infinite; }
+.animate-fade-in    { animation: fadeIn 0.5s ease forwards; }
+.animate-fade-in-up { animation: fadeInUp 0.6s ease forwards; }
+.animate-scale-in   { animation: scaleIn 0.4s ease forwards; }
+.animate-glow       { animation: glow 2.4s ease-in-out infinite; }
+.animate-checkmark  { stroke-dasharray: 48; stroke-dashoffset: 48; animation: checkmark 0.7s ease forwards; }
 
-/* Stagger delays */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
-.delay-500 { animation-delay: 500ms; }
-.delay-600 { animation-delay: 600ms; }
-.delay-700 { animation-delay: 700ms; }
-.delay-800 { animation-delay: 800ms; }
 
-/* Start hidden so staggered items don't flash */
-.opacity-0-start { opacity: 0; }
-
-/* Shimmer skeleton */
+/* Skeleton shimmer — dark theme */
 .skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-container) 0%,
+    var(--color-surface-container-high) 40%,
+    var(--color-surface-container) 80%
+  );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: var(--radius);
 }
 
-/* Smooth page transitions */
-.page-enter {
-  animation: fadeInUp 0.5s ease forwards;
-}
-
-/* Glass card effect */
+/* Glass (used sparingly on floating nav / header only) */
 .glass {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: color-mix(in oklab, var(--color-surface-container-high) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
+
+/* Utility: subtle emerald glow ring used on primary CTAs */
+.shadow-emerald {
+  box-shadow: 0 8px 30px rgba(78, 222, 163, 0.2);
+}
+.shadow-deep {
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+}
+
+/* Hide scrollbar utility (used in receptionist filter chips) */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { scrollbar-width: none; }

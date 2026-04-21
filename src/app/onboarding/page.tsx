@@ -2,11 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Briefcase, Stethoscope, User, ClipboardList, Loader2 } from "lucide-react";
+import { Sparkles, Stethoscope, User, ClipboardList, Loader2, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/auth-context";
 
 type Role = "doctor" | "patient" | "receptionist";
+
+const ROLES: { role: Role; Icon: typeof User; title: string; desc: string }[] = [
+  { role: "patient", Icon: User, title: "Patient", desc: "Book visits, track records, stay in the loop." },
+  { role: "doctor", Icon: Stethoscope, title: "Doctor", desc: "See today's schedule and priority reviews." },
+  { role: "receptionist", Icon: ClipboardList, title: "Receptionist", desc: "Run the clinic — the quiet way." },
+];
 
 export default function OnboardingPage() {
   const { user, isLoaded, isSignedIn } = useAuth();
@@ -36,12 +42,13 @@ export default function OnboardingPage() {
     setLoading(role);
     setError("");
     const supabase = createClient();
-    const fullName = (user.user_metadata?.full_name as string | undefined) ?? user.email?.split("@")[0] ?? null;
+    const fullName =
+      (user.user_metadata?.full_name as string | undefined) ?? user.email?.split("@")[0] ?? null;
     const { error: insertError } = await supabase
       .from("profiles")
       .insert({ id: user.id, email: user.email ?? null, full_name: fullName, role });
     if (insertError) {
-      console.error("[clinica] onboarding insert error:", insertError.message);
+      console.error("[lumina] onboarding insert error:", insertError.message);
       setError("Could not save your role. Please try again.");
       setLoading(null);
       return;
@@ -52,50 +59,59 @@ export default function OnboardingPage() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-surface">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-gray-50 px-4">
-      <div className="w-full max-w-2xl">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4 shadow-lg shadow-primary/30">
-            <Briefcase className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to Clinica</h1>
-          <p className="text-gray-500 mt-1">Choose your role to get started</p>
+    <div className="min-h-screen bg-surface text-on-surface flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-2xl animate-fade-in-up">
+        <div className="flex flex-col items-center text-center mb-10">
+          <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-emerald mb-5">
+            <Sparkles className="w-5 h-5 text-on-primary-fixed" />
+          </span>
+          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">One more step</p>
+          <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
+            Who&apos;s using Lumina today?
+          </h1>
+          <p className="text-on-surface-variant mt-3 max-w-md">
+            Pick the role that fits. You can always change it later.
+          </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 text-center">
+          <div className="mb-6 px-4 py-3 rounded-xl bg-error-container/30 border border-error/30 text-sm text-error text-center">
             {error}
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {(
-            [
-              { role: "doctor" as const, Icon: Stethoscope, title: "Doctor", desc: "Manage patients & appointments", accent: "text-primary bg-blue-50" },
-              { role: "patient" as const, Icon: User, title: "Patient", desc: "Book visits & manage health", accent: "text-green-600 bg-green-50" },
-              { role: "receptionist" as const, Icon: ClipboardList, title: "Receptionist", desc: "Manage bookings & queue", accent: "text-orange-600 bg-orange-50" },
-            ] as const
-          ).map(({ role, Icon, title, desc, accent }) => (
-            <button
-              key={role}
-              onClick={() => selectRole(role)}
-              disabled={!!loading}
-              className="group bg-white rounded-2xl border-2 border-gray-100 hover:border-primary p-8 text-center transition-all hover:shadow-xl active:scale-95 disabled:opacity-50 cursor-pointer"
-            >
-              <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${accent}`}>
-                {loading === role ? <Loader2 className="w-8 h-8 animate-spin" /> : <Icon className="w-8 h-8" />}
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">{title}</h3>
-              <p className="text-sm text-gray-500">{desc}</p>
-            </button>
-          ))}
+        <div className="space-y-3">
+          {ROLES.map(({ role, Icon, title, desc }) => {
+            const isLoading = loading === role;
+            return (
+              <button
+                key={role}
+                onClick={() => selectRole(role)}
+                disabled={!!loading}
+                className="group w-full flex items-center gap-5 p-6 rounded-2xl bg-surface-container-low hover:bg-surface-container-highest transition disabled:opacity-50 active:scale-[0.99] text-left"
+              >
+                <span className="w-14 h-14 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition">
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  ) : (
+                    <Icon className="w-6 h-6 text-primary" />
+                  )}
+                </span>
+                <div className="flex-1">
+                  <p className="font-semibold text-base">{title}</p>
+                  <p className="text-sm text-on-surface-variant mt-0.5">{desc}</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-on-surface-variant group-hover:text-primary transition" />
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -2,40 +2,45 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Calendar, X } from "lucide-react";
 
 export function DateFilter() {
   const router = useRouter();
   const params = useSearchParams();
   const [date, setDate] = useState(params.get("date") ?? "");
 
-  function apply() {
+  function apply(next: string) {
     const qs = new URLSearchParams(params.toString());
-    if (date) qs.set("date", date);
+    if (next) qs.set("date", next);
     else qs.delete("date");
     router.push(`/receptionist${qs.toString() ? `?${qs.toString()}` : ""}`);
   }
 
   function clear() {
     setDate("");
-    router.push("/receptionist");
+    apply("");
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-container-highest">
+      <Calendar className="w-4 h-4 text-on-surface-variant" />
       <input
         type="date"
         value={date}
-        onChange={(e) => setDate(e.target.value)}
-        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+        onChange={(e) => {
+          setDate(e.target.value);
+          apply(e.target.value);
+        }}
+        className="bg-transparent border-0 text-sm text-on-surface focus:outline-none [color-scheme:dark]"
       />
-      <Button variant="outline" size="sm" onClick={apply}>
-        Filter
-      </Button>
       {params.get("date") && (
-        <Button variant="ghost" size="sm" onClick={clear}>
-          Clear
-        </Button>
+        <button
+          onClick={clear}
+          className="text-on-surface-variant hover:text-on-surface transition"
+          aria-label="Clear filter"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   );

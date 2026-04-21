@@ -4,7 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { addAppointmentAction } from "@/app/(dashboard)/receptionist/actions";
@@ -17,7 +16,7 @@ type Doctor = {
 };
 
 const INPUT =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-400";
+  "w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:dark]";
 
 function minLocalDateTime() {
   const d = new Date(Date.now() + 5 * 60 * 1000);
@@ -88,18 +87,24 @@ export function AddAppointmentModal({ clinics }: { clinics: Clinic[] }) {
 
   return (
     <>
-      <Button
+      <button
         onClick={() => setOpen(true)}
         disabled={clinics.length === 0}
         title={clinics.length === 0 ? "Create a clinic first" : undefined}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-medium text-sm shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <Plus className="w-4 h-4 mr-2" />
+        <Plus className="w-4 h-4" />
         Add appointment
-      </Button>
-      <Modal isOpen={open} onClose={() => setOpen(false)} title="Add appointment">
+      </button>
+      <Modal
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        title="New appointment"
+        description="Book a visit on behalf of a patient."
+      >
         <form onSubmit={onSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-xl bg-error-container/30 border border-error/30 px-4 py-3 text-sm text-error">
               {error}
             </div>
           )}
@@ -171,27 +176,25 @@ export function AddAppointmentModal({ clinics }: { clinics: Clinic[] }) {
             />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
-            <Button
+            <button
               type="button"
-              variant="outline"
               onClick={() => {
                 setOpen(false);
                 reset();
               }}
               disabled={pending}
+              className="px-5 py-3 rounded-xl bg-surface-container-highest hover:bg-surface-bright text-on-surface font-medium text-sm transition disabled:opacity-50"
             >
               Cancel
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Adding…
-                </span>
-              ) : (
-                "Add appointment"
-              )}
-            </Button>
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="px-5 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold text-sm shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-50 inline-flex items-center gap-2"
+            >
+              {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {pending ? "Adding…" : "Add appointment"}
+            </button>
           </div>
         </form>
       </Modal>
@@ -210,7 +213,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="text-sm font-medium text-gray-700">
+      <label htmlFor={htmlFor} className="text-xs uppercase tracking-[0.18em] text-on-surface-variant ml-1">
         {label}
       </label>
       {children}

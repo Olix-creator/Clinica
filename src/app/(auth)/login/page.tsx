@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Briefcase, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const GOOGLE_CLIENT_ID = "35747672771-j771sf9s3j1l1ocb7ae7jmo8028710rt.apps.googleusercontent.com";
@@ -36,7 +36,7 @@ export default function LoginPage() {
     const supabase = createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError) {
-      console.error("[clinica] login error:", signInError.message);
+      console.error("[lumina] login error:", signInError.message);
       setError("Invalid email or password.");
       setLoading(false);
       return;
@@ -60,96 +60,94 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative z-10 w-full max-w-sm">
-      <div className="text-center mb-8">
-        <Link href="/" className="inline-flex flex-col items-center gap-3">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-xl shadow-primary/30">
-            <Briefcase className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">Clinica</h1>
-            <p className="text-gray-500 text-sm mt-0.5">Medical Portal</p>
-          </div>
-        </Link>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-        <h2 className="text-lg font-bold text-gray-900 text-center mb-1">Welcome back</h2>
-        <p className="text-sm text-gray-500 text-center mb-6">Sign in to your account</p>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white border-2 border-gray-200 hover:border-gray-300 rounded-xl font-semibold text-gray-700 transition-all hover:shadow-md active:scale-95 cursor-pointer disabled:opacity-50 mb-5"
-        >
-          {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleIcon />}
-          Continue with Google
-        </button>
-
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-xs text-gray-400 font-medium">OR</span>
-          <div className="flex-1 h-px bg-gray-200" />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              disabled={loading}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60"
-            />
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              disabled={loading}
-              className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-60"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary/30 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign in"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-500 mt-5">
-          No account?{" "}
-          <Link href="/signup" className="text-primary font-semibold hover:underline">
-            Create one
-          </Link>
+    <div className="animate-fade-in-up">
+      <div className="mb-10">
+        <p className="text-xs uppercase tracking-[0.2em] text-primary mb-3">Sign in</p>
+        <h2 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">Welcome back.</h2>
+        <p className="text-on-surface-variant mt-3">
+          Sign in to your Lumina Clinical workspace.
         </p>
       </div>
 
-      <div className="text-center mt-6">
-        <Link href="/" className="text-sm text-gray-400 hover:text-primary transition-colors">
-          ← Back to home
+      {error && (
+        <div className="mb-5 px-4 py-3 rounded-xl bg-error-container/30 text-error border border-error/30 text-sm">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleGoogle}
+        disabled={googleLoading}
+        className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-xl bg-surface-container-highest hover:bg-surface-bright active:scale-[0.98] transition font-medium disabled:opacity-50 mb-6"
+      >
+        {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleIcon />}
+        Continue with Google
+      </button>
+
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex-1 h-px bg-outline-variant/40" />
+        <span className="text-xs tracking-[0.2em] text-on-surface-variant uppercase">Or</span>
+        <div className="flex-1 h-px bg-outline-variant/40" />
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="relative">
+          <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@clinic.com"
+            disabled={loading}
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+          />
+        </div>
+        <div className="relative">
+          <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          <input
+            type={showPassword ? "text" : "password"}
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            disabled={loading}
+            className="w-full pl-12 pr-12 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full mt-2 py-4 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign in"}
+        </button>
+      </form>
+
+      <p className="text-center text-sm text-on-surface-variant mt-8">
+        New to Lumina?{" "}
+        <Link href="/signup" className="text-primary font-medium hover:underline">
+          Create an account
+        </Link>
+      </p>
+
+      <div className="mt-8 text-center">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-xs text-on-surface-variant hover:text-on-surface transition"
+        >
+          <ArrowLeft className="w-3 h-3" />
+          Back to home
         </Link>
       </div>
     </div>

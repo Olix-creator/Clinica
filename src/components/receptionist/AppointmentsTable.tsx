@@ -1,72 +1,63 @@
+import { Calendar } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { AppointmentWithRelations } from "@/lib/data/appointments";
 
-function fmt(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-export function AppointmentsTable({
-  appointments,
-}: {
-  appointments: AppointmentWithRelations[];
-}) {
+export function AppointmentsTable({ appointments }: { appointments: AppointmentWithRelations[] }) {
   if (appointments.length === 0) {
     return (
-      <div className="py-10 text-center text-gray-500 text-sm">
-        No appointments match this filter.
+      <div className="py-4">
+        <EmptyState
+          icon={Calendar}
+          title="No appointments match"
+          description="Try a different filter or add a new appointment."
+        />
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <Th>Date</Th>
-            <Th>Clinic</Th>
-            <Th>Doctor</Th>
-            <Th>Patient</Th>
-            <Th>Status</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {appointments.map((a) => (
-            <tr key={a.id}>
-              <Td>{fmt(a.appointment_date)}</Td>
-              <Td>{a.clinic?.name ?? "—"}</Td>
-              <Td>
-                {a.doctor?.profile?.full_name ?? a.doctor?.profile?.email ?? "—"}
-                {a.doctor?.specialty ? (
-                  <span className="text-gray-400"> · {a.doctor.specialty}</span>
-                ) : null}
-              </Td>
-              <Td>{a.patient?.full_name ?? a.patient?.email ?? "—"}</Td>
-              <Td>
-                <StatusBadge status={a.status} />
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-1">
+      {/* Header row */}
+      <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">
+        <div className="col-span-2">When</div>
+        <div className="col-span-2">Clinic</div>
+        <div className="col-span-3">Doctor</div>
+        <div className="col-span-3">Patient</div>
+        <div className="col-span-2 text-right">Status</div>
+      </div>
+
+      {appointments.map((a) => (
+        <div
+          key={a.id}
+          className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center px-4 py-4 rounded-2xl bg-surface-container-low hover:bg-surface-container transition"
+        >
+          <div className="md:col-span-2">
+            <p className="font-semibold text-sm">{fmtTime(a.appointment_date)}</p>
+            <p className="text-xs text-on-surface-variant">{fmtDate(a.appointment_date)}</p>
+          </div>
+          <div className="md:col-span-2 text-sm truncate">{a.clinic?.name ?? "—"}</div>
+          <div className="md:col-span-3 text-sm truncate">
+            {a.doctor?.profile?.full_name ?? a.doctor?.profile?.email ?? "—"}
+            {a.doctor?.specialty && (
+              <span className="text-on-surface-variant"> · {a.doctor.specialty}</span>
+            )}
+          </div>
+          <div className="md:col-span-3 text-sm truncate">
+            {a.patient?.full_name ?? a.patient?.email ?? "—"}
+          </div>
+          <div className="md:col-span-2 md:text-right">
+            <StatusBadge status={a.status} />
+          </div>
+        </div>
+      ))}
     </div>
   );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-      {children}
-    </th>
-  );
-}
-function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-3 text-gray-700">{children}</td>;
 }

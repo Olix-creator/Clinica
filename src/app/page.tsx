@@ -1,740 +1,456 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Briefcase,
-  Users,
-  CalendarDays,
-  LayoutDashboard,
-  MousePointer2,
-  FileX,
-  CalendarX,
-  BellOff,
-  CheckCircle2,
-  Star,
-  Phone,
-  MessageCircle,
-  Shield,
-  Zap,
-  Check,
+  ArrowRight,
+  CalendarCheck2,
+  Stethoscope,
+  ClipboardList,
+  BellRing,
+  ShieldCheck,
+  Sparkles,
   Menu,
   X,
-  ArrowRight,
+  Check,
+  Star,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useI18n } from "@/lib/i18n/context";
-import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
-import { AuthButton, AuthButtonMobile } from "@/components/auth/AuthButton";
 
-/* ── animation variants ── */
-import type { Variants } from "framer-motion";
+const features = [
+  {
+    icon: CalendarCheck2,
+    title: "Effortless scheduling",
+    body: "Patients book in three taps. Receptionists see a live canvas of every clinic, every room, every minute.",
+  },
+  {
+    icon: Stethoscope,
+    title: "Clinician focus",
+    body: "Today's schedule, priority review queue, and one-tap status changes — your shift, distilled.",
+  },
+  {
+    icon: BellRing,
+    title: "Realtime notifications",
+    body: "Appointment confirmations, cancellations and reminders stream instantly — no refresh required.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Unified medical record",
+    body: "Vitals, visits and notes live in one place. Patients see what clinicians see — safely, via RLS.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Security you can audit",
+    body: "Postgres Row Level Security on every table. Your data, your policy, zero shortcuts.",
+  },
+  {
+    icon: Sparkles,
+    title: "Design that calms",
+    body: "A clinical sanctuary. Dark, tonal, generous radii — built to lower the cognitive load of a busy shift.",
+  },
+];
 
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: (i: number = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, delay: i * 0.1, ease: "easeOut" as const },
-  }),
-};
+const steps = [
+  {
+    n: "01",
+    title: "Create your clinic",
+    body: "Sign up, pick your role, and spin up a clinic in under a minute.",
+  },
+  {
+    n: "02",
+    title: "Invite your team",
+    body: "Add doctors and receptionists. Roles and permissions are enforced at the database.",
+  },
+  {
+    n: "03",
+    title: "Start healing",
+    body: "Patients book, clinicians treat, receptionists orchestrate — Lumina keeps everyone in sync.",
+  },
+];
 
-const fadeIn: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.6 } },
-};
+const testimonials = [
+  {
+    name: "Dr. Noor Al-Amin",
+    role: "Cardiologist, Cedar Clinic",
+    body: "Lumina replaced three spreadsheets and a whiteboard. My pre-shift anxiety is gone.",
+  },
+  {
+    name: "Sara Bennani",
+    role: "Receptionist, Atlas Medical",
+    body: "The schedule canvas is a revelation. I see every room, every provider, at a glance.",
+  },
+  {
+    name: "Youssef Karimi",
+    role: "Patient",
+    body: "Booked a follow-up in 20 seconds. The reminders mean I never miss a visit anymore.",
+  },
+];
 
-const slideLeft: Variants = {
-  hidden: { opacity: 0, x: -40 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
-};
+const plans = [
+  {
+    name: "Solo",
+    price: "Free",
+    tagline: "For independent clinicians starting out.",
+    features: ["1 clinic", "Up to 2 providers", "Unlimited patients", "Email reminders"],
+    cta: "Start free",
+    featured: false,
+  },
+  {
+    name: "Clinic",
+    price: "$49",
+    suffix: "/mo",
+    tagline: "For growing practices that need more horsepower.",
+    features: [
+      "Up to 5 clinics",
+      "Unlimited providers",
+      "Realtime notifications",
+      "Role-based dashboards",
+      "Priority support",
+    ],
+    cta: "Start 14-day trial",
+    featured: true,
+  },
+  {
+    name: "Network",
+    price: "Custom",
+    tagline: "For hospital groups and multi-region networks.",
+    features: [
+      "Unlimited clinics",
+      "SSO / SAML",
+      "Advanced audit logs",
+      "Dedicated success manager",
+    ],
+    cta: "Talk to us",
+    featured: false,
+  },
+];
 
-const slideRight: Variants = {
-  hidden: { opacity: 0, x: 40 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
-};
+export default function LandingPage() {
+  const [menu, setMenu] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.9 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" as const } },
-};
-
-const stagger: Variants = {
-  visible: { transition: { staggerChildren: 0.12 } },
-};
-
-/* ── tiny components ── */
-function NavBar() {
-  const [open, setOpen] = useState(false);
-  const { t } = useI18n();
-  const l = t("landing");
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center group-hover:bg-primary-dark transition-colors">
-            <Briefcase className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-xl font-bold text-gray-900">Clinica</span>
-        </Link>
-
-        <div className="hidden md:flex items-center gap-8">
-          {[
-            [l.features, "#features"],
-            [l.pricing, "#pricing"],
-            [l.contact, "#contact"],
-          ].map(([label, href]) => (
-            <a
-              key={label}
-              href={href}
-              className="text-sm font-medium text-gray-600 hover:text-primary transition-colors"
-            >
-              {label}
-            </a>
-          ))}
-        </div>
-
-        <div className="hidden md:flex items-center gap-3">
-          <LanguageSwitcher />
-          <AuthButton />
-          <Link
-            href="/signup"
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary/25 active:scale-95"
-          >
-            {l.startFree}
-            <ArrowRight className="w-4 h-4" />
+    <div className="min-h-screen bg-surface text-on-surface font-body">
+      {/* Nav */}
+      <header
+        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
+          scrolled ? "backdrop-blur-xl bg-surface-container-low/70 border-b border-outline-variant/40" : ""
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-emerald">
+              <Sparkles className="w-5 h-5 text-on-primary-fixed" />
+            </span>
+            <span className="text-lg font-semibold tracking-tight">Lumina Clinical</span>
           </Link>
-        </div>
 
-        <button
-          onClick={() => setOpen(!open)}
-          className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </div>
+          <nav className="hidden md:flex items-center gap-8 text-sm text-on-surface-variant">
+            <a href="#features" className="hover:text-on-surface transition">Features</a>
+            <a href="#how" className="hover:text-on-surface transition">How it works</a>
+            <a href="#pricing" className="hover:text-on-surface transition">Pricing</a>
+            <a href="#testimonials" className="hover:text-on-surface transition">Testimonials</a>
+          </nav>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-3 overflow-hidden"
-          >
-            {[
-              [l.features, "#features"],
-              [l.pricing, "#pricing"],
-              [l.contact, "#contact"],
-            ].map(([label, href]) => (
-              <a
-                key={label}
-                href={href}
-                onClick={() => setOpen(false)}
-                className="block py-2 text-sm font-medium text-gray-600 hover:text-primary"
-              >
-                {label}
-              </a>
-            ))}
-            <div className="pt-2 flex flex-col gap-2">
-              <div className="flex justify-center">
-                <LanguageSwitcher />
-              </div>
-              <AuthButtonMobile label={l.signIn} />
-              <Link href="/signup" className="py-2.5 text-center text-sm font-semibold bg-primary text-white rounded-xl">
-                {l.startFree}
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </nav>
-  );
-}
-
-function DashboardMockup() {
-  return (
-    <motion.div
-      className="relative w-full max-w-lg mx-auto"
-      animate={{ y: [0, -8, 0] }}
-      transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <div className="absolute inset-0 translate-y-4 translate-x-2 bg-primary/10 rounded-2xl blur-xl" />
-      <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border-b border-gray-100">
-          <div className="w-3 h-3 rounded-full bg-red-400" />
-          <div className="w-3 h-3 rounded-full bg-yellow-400" />
-          <div className="w-3 h-3 rounded-full bg-green-400" />
-          <div className="ml-3 flex-1 h-5 bg-gray-200 rounded-md" />
-        </div>
-        <div className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="h-4 w-28 bg-gray-900 rounded font-bold" />
-              <div className="h-2.5 w-36 bg-gray-200 rounded mt-1" />
-            </div>
-            <div className="h-8 w-24 bg-primary rounded-lg" />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { color: "bg-blue-50", bar: "bg-primary", val: "12" },
-              { color: "bg-green-50", bar: "bg-green-500", val: "08" },
-              { color: "bg-orange-50", bar: "bg-orange-400", val: "04" },
-            ].map((s, i) => (
-              <div key={i} className={`${s.color} rounded-xl p-3`}>
-                <div className={`h-6 w-8 ${s.bar} rounded text-white text-xs font-bold flex items-center justify-center`}>
-                  {s.val}
-                </div>
-                <div className="h-2 w-12 bg-gray-200 rounded mt-2" />
-              </div>
-            ))}
-          </div>
-          <div className="space-y-2">
-            <div className="h-3 w-24 bg-gray-300 rounded" />
-            {[
-              { color: "bg-primary", label: "bg-blue-100 text-primary", status: "In Progress" },
-              { color: "bg-gray-200", label: "bg-orange-50 text-orange-700", status: "Waiting" },
-              { color: "bg-gray-200", label: "bg-orange-50 text-orange-700", status: "Waiting" },
-            ].map((row, i) => (
-              <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50">
-                <div className={`w-7 h-7 rounded-full ${row.color} flex items-center justify-center text-white text-xs font-bold`}>
-                  {i + 1}
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="h-2.5 w-20 bg-gray-300 rounded" />
-                  <div className="h-2 w-14 bg-gray-200 rounded" />
-                </div>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${row.label}`}>
-                  {row.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ── SECTIONS ── */
-
-function HeroSection() {
-  const { t } = useI18n();
-  const l = t("landing");
-
-  return (
-    <section className="pt-32 pb-20 px-4 sm:px-6 bg-linear-to-b from-blue-50/60 via-white to-white overflow-hidden">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        <motion.div
-          className="space-y-6"
-          initial="hidden"
-          animate="visible"
-          variants={stagger}
-        >
-          <motion.div
-            variants={fadeUp}
-            custom={0}
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-full"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            {l.heroTag}
-          </motion.div>
-
-          <motion.h1
-            variants={fadeUp}
-            custom={1}
-            className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-gray-900 leading-tight"
-          >
-            {l.heroTitle1}<br />
-            <span className="text-primary">{l.heroTitle2}</span>
-          </motion.h1>
-
-          <motion.p variants={fadeUp} custom={2} className="text-lg text-gray-500 leading-relaxed">
-            {l.heroDesc}
-          </motion.p>
-
-          <motion.div variants={fadeUp} custom={3} className="flex flex-wrap gap-3">
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              href="/login"
+              className="text-sm text-on-surface-variant hover:text-on-surface transition px-4 py-2"
+            >
+              Sign in
+            </Link>
             <Link
               href="/signup"
-              className="flex items-center gap-2 px-6 py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-95"
+              className="text-sm font-medium px-5 py-2.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed shadow-emerald hover:brightness-110 active:scale-[0.98] transition"
             >
-              {l.heroCta}
+              Get started
+            </Link>
+          </div>
+
+          <button
+            className="md:hidden w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center"
+            onClick={() => setMenu((v) => !v)}
+          >
+            {menu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {menu && (
+          <div className="md:hidden border-t border-outline-variant/40 bg-surface-container-low/95 backdrop-blur-xl">
+            <div className="px-6 py-6 flex flex-col gap-4 text-sm">
+              <a href="#features" onClick={() => setMenu(false)}>Features</a>
+              <a href="#how" onClick={() => setMenu(false)}>How it works</a>
+              <a href="#pricing" onClick={() => setMenu(false)}>Pricing</a>
+              <a href="#testimonials" onClick={() => setMenu(false)}>Testimonials</a>
+              <div className="pt-4 border-t border-outline-variant/40 flex flex-col gap-3">
+                <Link href="/login" className="px-4 py-3 rounded-xl bg-surface-container-highest text-center">Sign in</Link>
+                <Link
+                  href="/signup"
+                  className="px-4 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed text-center font-medium"
+                >
+                  Get started
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Hero */}
+      <section className="relative pt-40 pb-24 overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[720px] h-[720px] rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-[480px] h-[480px] rounded-full bg-primary-container/10 blur-3xl" />
+        </div>
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-highest text-xs tracking-[0.18em] uppercase text-on-surface-variant mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            The clinical sanctuary
+          </span>
+          <h1 className="font-headline text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.02] mb-8 max-w-4xl mx-auto">
+            The calm at the center of a
+            <span className="block bg-gradient-to-r from-primary-fixed via-primary to-primary-container bg-clip-text text-transparent">
+              busy clinic.
+            </span>
+          </h1>
+          <p className="text-lg sm:text-xl text-on-surface-variant max-w-2xl mx-auto mb-10">
+            Lumina Clinical unifies scheduling, records and realtime notifications in a single, deeply considered
+            workspace — so your team can focus on healing, not on software.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition"
+            >
+              Start free
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <a
-              href="#contact"
-              className="flex items-center gap-2 px-6 py-3.5 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl border border-gray-200 transition-all hover:shadow-md active:scale-95"
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-surface-container-highest text-on-surface font-medium hover:bg-surface-bright transition"
             >
-              {l.requestDemo}
-            </a>
-          </motion.div>
+              I already have an account
+            </Link>
+          </div>
 
-          <motion.div variants={fadeUp} custom={4} className="flex items-center gap-6 pt-2">
-            {[
-              [l.statFree, l.statFreeLabel],
-              [l.statSetup, l.statSetupLabel],
-              [l.statRealtime, l.statRealtimeLabel],
-            ].map(([val, label]) => (
-              <div key={label}>
-                <p className="text-lg font-bold text-gray-900">{val}</p>
-                <p className="text-xs text-gray-400">{label}</p>
+          <div className="mt-20 mx-auto max-w-5xl">
+            <div className="relative rounded-[2rem] bg-surface-container-low ring-1 ring-outline-variant/50 overflow-hidden shadow-deep p-6">
+              <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12 md:col-span-4 bg-surface-container-highest rounded-2xl p-6 text-left">
+                  <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3">Next appointment</p>
+                  <p className="font-semibold text-lg">Dr. Alma Reyes</p>
+                  <p className="text-sm text-on-surface-variant">Cardiology · Today 14:30</p>
+                  <div className="mt-5 inline-flex px-3 py-1 rounded-full bg-secondary-container/40 text-secondary text-xs font-medium">
+                    Confirmed
+                  </div>
+                </div>
+                <div className="col-span-12 md:col-span-4 bg-surface-container rounded-2xl p-6 text-left">
+                  <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3">Live queue</p>
+                  <p className="font-semibold text-4xl">7</p>
+                  <p className="text-sm text-on-surface-variant">patients checked in</p>
+                  <div className="mt-4 h-2 bg-surface-bright rounded-full overflow-hidden">
+                    <div className="h-full w-2/3 bg-gradient-to-r from-primary-fixed to-primary rounded-full" />
+                  </div>
+                </div>
+                <div className="col-span-12 md:col-span-4 bg-surface-container-high rounded-2xl p-6 text-left">
+                  <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3">Notifications</p>
+                  <div className="flex items-start gap-3 mb-3">
+                    <span className="mt-1 w-2 h-2 rounded-full bg-primary" />
+                    <p className="text-sm">New booking from Youssef K.</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="mt-1 w-2 h-2 rounded-full bg-tertiary" />
+                    <p className="text-sm">Dr. Reyes updated a note.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-4">Features</p>
+            <h2 className="font-headline text-4xl sm:text-5xl font-semibold tracking-tight">
+              Every workflow, quietly mastered.
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {features.map((f) => (
+              <div
+                key={f.title}
+                className="group rounded-2xl bg-surface-container-low p-7 ring-1 ring-outline-variant/40 hover:ring-primary/40 hover:bg-surface-container transition"
+              >
+                <div className="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center mb-5 group-hover:bg-primary/15 transition">
+                  <f.icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">{f.title}</h3>
+                <p className="text-sm text-on-surface-variant leading-relaxed">{f.body}</p>
               </div>
             ))}
-          </motion.div>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={slideRight}
-        >
-          <DashboardMockup />
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function ProblemSolutionSection() {
-  const { t } = useI18n();
-  const l = t("landing");
-
-  const problems = [
-    { icon: FileX, title: l.problem1Title, desc: l.problem1Desc },
-    { icon: CalendarX, title: l.problem2Title, desc: l.problem2Desc },
-    { icon: BellOff, title: l.problem3Title, desc: l.problem3Desc },
-  ];
-
-  return (
-    <section className="py-20 px-4 sm:px-6 bg-gray-50">
-      <div className="max-w-6xl mx-auto">
-        <motion.div
-          className="text-center mb-12"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeUp}
-        >
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">{l.problemTitle}</h2>
-          <p className="text-gray-500">{l.problemSubtitle}</p>
-        </motion.div>
-
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={stagger}
-        >
-          {problems.map(({ icon: Icon, title, desc }, i) => (
-            <motion.div
-              key={title}
-              variants={fadeUp}
-              custom={i}
-              className="bg-white rounded-2xl p-6 shadow-sm border border-red-100"
-            >
-              <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center mb-4">
-                <Icon className="w-5 h-5 text-red-500" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">{title}</h3>
-              <p className="text-sm text-gray-500">{desc}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        <motion.div
-          className="relative bg-linear-to-r from-primary to-blue-700 rounded-2xl p-8 text-white overflow-hidden"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={scaleIn}
-        >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
-            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold mb-1">{l.solutionTitle}</h3>
-              <p className="text-blue-100 text-lg">{l.solutionDesc}</p>
-            </div>
           </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
+        </div>
+      </section>
 
-function FeaturesSection() {
-  const { t } = useI18n();
-  const l = t("landing");
-
-  const features = [
-    { icon: Users, title: l.feature1Title, desc: l.feature1Desc, color: "bg-blue-50 text-primary" },
-    { icon: CalendarDays, title: l.feature2Title, desc: l.feature2Desc, color: "bg-green-50 text-green-600" },
-    { icon: LayoutDashboard, title: l.feature3Title, desc: l.feature3Desc, color: "bg-purple-50 text-purple-600" },
-    { icon: MousePointer2, title: l.feature4Title, desc: l.feature4Desc, color: "bg-orange-50 text-orange-500" },
-  ];
-
-  return (
-    <section id="features" className="py-20 px-4 sm:px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <motion.div
-          className="text-center mb-12"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeUp}
-        >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-4">
-            {l.featuresTag}
+      {/* How it works */}
+      <section id="how" className="py-24 bg-surface-container-lowest">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-4">How it works</p>
+            <h2 className="font-headline text-4xl sm:text-5xl font-semibold tracking-tight">
+              Up and running in an afternoon.
+            </h2>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">{l.featuresTitle}</h2>
-          <p className="text-gray-500 max-w-lg mx-auto">{l.featuresSubtitle}</p>
-        </motion.div>
 
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-6"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={stagger}
-        >
-          {features.map(({ icon: Icon, title, desc, color }, i) => (
-            <motion.div
-              key={title}
-              variants={fadeUp}
-              custom={i}
-              whileHover={{ y: -4, boxShadow: "0 20px 40px rgba(0,0,0,0.08)" }}
-              className="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm cursor-default transition-colors hover:border-primary/20"
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${color} group-hover:scale-110 transition-transform`}>
-                <Icon className="w-6 h-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {steps.map((s) => (
+              <div key={s.n} className="rounded-2xl bg-surface-container p-8 relative overflow-hidden">
+                <div className="absolute -top-4 -right-4 text-[7rem] leading-none font-bold text-surface-bright/40 select-none">
+                  {s.n}
+                </div>
+                <div className="relative">
+                  <p className="text-xs uppercase tracking-[0.18em] text-primary mb-4">Step {s.n}</p>
+                  <h3 className="font-semibold text-xl mb-3">{s.title}</h3>
+                  <p className="text-sm text-on-surface-variant leading-relaxed">{s.body}</p>
+                </div>
               </div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">{title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function PricingSection() {
-  const { t } = useI18n();
-  const l = t("landing");
-
-  const freePlan = [l.freePlan1, l.freePlan2, l.freePlan3, l.freePlan4];
-  const proPlan = [l.proPlan1, l.proPlan2, l.proPlan3, l.proPlan4, l.proPlan5, l.proPlan6];
-
-  return (
-    <section id="pricing" className="py-20 px-4 sm:px-6 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
-        <motion.div
-          className="text-center mb-12"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={fadeUp}
-        >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary text-xs font-semibold rounded-full mb-4">
-            {l.pricingTag}
+            ))}
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">{l.pricingTitle}</h2>
-          <p className="text-gray-500">{l.pricingSubtitle}</p>
-        </motion.div>
+        </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <motion.div
-            className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={slideLeft}
-          >
-            <div className="mb-6">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">{l.free}</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-gray-900">0</span>
-                <span className="text-lg text-gray-400">DA</span>
+      {/* Testimonials */}
+      <section id="testimonials" className="py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-4">Loved by teams</p>
+            <h2 className="font-headline text-4xl sm:text-5xl font-semibold tracking-tight">
+              Words from the floor.
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {testimonials.map((t) => (
+              <div key={t.name} className="rounded-2xl bg-surface-container-low p-7 ring-1 ring-outline-variant/40">
+                <div className="flex gap-1 mb-5 text-primary">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-current" />
+                  ))}
+                </div>
+                <p className="text-on-surface mb-6 leading-relaxed">&ldquo;{t.body}&rdquo;</p>
+                <div>
+                  <p className="font-semibold text-sm">{t.name}</p>
+                  <p className="text-xs text-on-surface-variant">{t.role}</p>
+                </div>
               </div>
-              <p className="text-sm text-gray-400 mt-1">{l.foreverFree}</p>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="py-24 bg-surface-container-lowest">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-4">Pricing</p>
+            <h2 className="font-headline text-4xl sm:text-5xl font-semibold tracking-tight">
+              Honest plans. No seat games.
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {plans.map((p) => (
+              <div
+                key={p.name}
+                className={`rounded-[2rem] p-8 ${
+                  p.featured
+                    ? "bg-gradient-to-br from-surface-container-high to-surface-container ring-2 ring-primary shadow-emerald"
+                    : "bg-surface-container ring-1 ring-outline-variant/40"
+                }`}
+              >
+                {p.featured && (
+                  <div className="inline-flex px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-medium mb-4">
+                    Most popular
+                  </div>
+                )}
+                <h3 className="font-semibold text-xl mb-1">{p.name}</h3>
+                <p className="text-sm text-on-surface-variant mb-6">{p.tagline}</p>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="font-headline text-5xl font-semibold">{p.price}</span>
+                  {p.suffix && <span className="text-on-surface-variant">{p.suffix}</span>}
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-3 text-sm">
+                      <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                      <span className="text-on-surface-variant">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/signup"
+                  className={`block text-center px-5 py-3.5 rounded-xl font-medium transition ${
+                    p.featured
+                      ? "bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed shadow-emerald hover:brightness-110"
+                      : "bg-surface-container-highest text-on-surface hover:bg-surface-bright"
+                  }`}
+                >
+                  {p.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="rounded-[2rem] bg-gradient-to-br from-surface-container-high via-surface-container to-surface-container-low p-12 sm:p-16 text-center ring-1 ring-outline-variant/40 relative overflow-hidden">
+            <div className="absolute inset-0 -z-10">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/10 blur-3xl" />
             </div>
-            <ul className="space-y-3 mb-8">
-              {freePlan.map((item) => (
-                <li key={item} className="flex items-center gap-3 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-green-500 shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <h2 className="font-headline text-4xl sm:text-5xl font-semibold tracking-tight mb-5">
+              Let the software fade.
+            </h2>
+            <p className="text-on-surface-variant max-w-xl mx-auto mb-8">
+              Ten minutes from now your clinic could be running on Lumina. Start free — no card, no friction.
+            </p>
             <Link
               href="/signup"
-              className="block text-center py-3 px-4 border-2 border-primary text-primary font-semibold rounded-xl hover:bg-primary hover:text-white transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition"
             >
-              {l.getStartedFree}
+              Start free
+              <ArrowRight className="w-4 h-4" />
             </Link>
-          </motion.div>
-
-          <motion.div
-            className="relative bg-primary rounded-2xl p-8 shadow-xl"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={slideRight}
-          >
-            <div className="absolute top-4 right-4 bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-              {l.mostPopular}
-            </div>
-            <div className="mb-6">
-              <p className="text-sm font-semibold text-blue-200 uppercase tracking-wider mb-1">{l.pro}</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-white">10,000</span>
-                <span className="text-lg text-blue-200">DA/mo</span>
-              </div>
-              <p className="text-sm text-blue-200 mt-1">{l.proSubtitle}</p>
-            </div>
-            <ul className="space-y-3 mb-8">
-              {proPlan.map((item) => (
-                <li key={item} className="flex items-center gap-3 text-sm text-blue-100">
-                  <Check className="w-4 h-4 text-white shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <a
-              href="#contact"
-              className="block text-center py-3 px-4 bg-white text-primary font-semibold rounded-xl hover:bg-blue-50 transition-all"
-            >
-              {l.requestProAccess}
-            </a>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TrustSection() {
-  const { t } = useI18n();
-  const l = t("landing");
-
-  const testimonials = [
-    { name: l.testimonial1Name, role: l.testimonial1Role, quote: l.testimonial1Quote },
-    { name: l.testimonial2Name, role: l.testimonial2Role, quote: l.testimonial2Quote },
-    { name: l.testimonial3Name, role: l.testimonial3Role, quote: l.testimonial3Quote },
-  ];
-
-  return (
-    <section className="py-20 px-4 sm:px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <motion.div
-          className="flex flex-wrap justify-center gap-6 mb-16"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={fadeIn}
-        >
-          {[
-            { icon: Shield, label: l.trustSecure },
-            { icon: Zap, label: l.trustRealtime },
-            { icon: CheckCircle2, label: l.trustNoSetup },
-          ].map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-2 text-sm font-medium text-gray-600">
-              <Icon className="w-4 h-4 text-primary" />
-              {label}
-            </div>
-          ))}
-        </motion.div>
-
-        <motion.div
-          className="text-center mb-10"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={fadeUp}
-        >
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">{l.trustTitle}</h2>
-          <p className="text-gray-500">{l.trustSubtitle}</p>
-        </motion.div>
-
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-60px" }}
-          variants={stagger}
-        >
-          {testimonials.map(({ name, role, quote }, i) => (
-            <motion.div
-              key={name}
-              variants={fadeUp}
-              custom={i}
-              className="bg-gray-50 rounded-2xl p-6 border border-gray-100"
-            >
-              <div className="flex gap-1 mb-4">
-                {Array(5).fill(0).map((_, j) => (
-                  <Star key={j} className="w-4 h-4 text-amber-400 fill-amber-400" />
-                ))}
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">&ldquo;{quote}&rdquo;</p>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{name}</p>
-                <p className="text-xs text-gray-400">{role}</p>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function ContactSection() {
-  const [form, setForm] = useState({ name: "", clinic: "", phone: "" });
-  const [sent, setSent] = useState(false);
-  const { t } = useI18n();
-  const l = t("landing");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSent(true);
-  }
-
-  return (
-    <section id="contact" className="py-20 px-4 sm:px-6 bg-gray-50">
-      <div className="max-w-2xl mx-auto">
-        <motion.div
-          className="text-center mb-10"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-          variants={fadeUp}
-        >
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">{l.contactTitle}</h2>
-          <p className="text-gray-500">{l.contactSubtitle}</p>
-        </motion.div>
-
-        <AnimatePresence mode="wait">
-          {sent ? (
-            <motion.div
-              key="sent"
-              initial="hidden"
-              animate="visible"
-              variants={scaleIn}
-              className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center"
-            >
-              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">{l.messageReceived}</h3>
-              <p className="text-sm text-gray-500">{l.messageReceivedDesc}</p>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="form"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              variants={fadeUp}
-              className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100"
-            >
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {[
-                  { label: l.contactName, key: "name", placeholder: l.contactNamePlaceholder, type: "text" },
-                  { label: l.contactClinic, key: "clinic", placeholder: l.contactClinicPlaceholder, type: "text" },
-                  { label: l.contactPhone, key: "phone", placeholder: l.contactPhonePlaceholder, type: "tel" },
-                ].map(({ label, key, placeholder, type }) => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
-                    <input
-                      type={type}
-                      required
-                      placeholder={placeholder}
-                      value={form[key as keyof typeof form]}
-                      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                    />
-                  </div>
-                ))}
-                <button
-                  type="submit"
-                  className="w-full py-3.5 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-primary/25 active:scale-95"
-                >
-                  {l.sendMessage}
-                </button>
-              </form>
-
-              <div className="flex items-center gap-2 mt-6 pt-6 border-t border-gray-100">
-                <Phone className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-500">{l.orCallUs} </span>
-                <a href="tel:+213555000000" className="text-sm font-medium text-primary hover:underline">
-                  +213 555 000 000
-                </a>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </section>
-  );
-}
-
-function Footer() {
-  const { t } = useI18n();
-  const l = t("landing");
-
-  return (
-    <footer className="bg-gray-900 text-gray-400 py-10 px-4 sm:px-6">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-            <Briefcase className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-white">Clinica</span>
         </div>
-        <p className="text-sm">{l.footerRights}</p>
-        <div className="flex gap-4 text-sm">
-          <AuthButton className="hover:text-white transition-colors cursor-pointer" />
-          <a href="#contact" className="hover:text-white transition-colors">{l.contact}</a>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-outline-variant/30 py-12">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-on-surface-variant">
+          <div className="flex items-center gap-3">
+            <span className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-container flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-on-primary-fixed" />
+            </span>
+            <span>&copy; {new Date().getFullYear()} Lumina Clinical</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <Link href="/login" className="hover:text-on-surface">Sign in</Link>
+            <Link href="/signup" className="hover:text-on-surface">Get started</Link>
+          </div>
         </div>
-      </div>
-    </footer>
-  );
-}
-
-function WhatsAppButton() {
-  return (
-    <motion.a
-      href="https://wa.me/213555000000"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-xl flex items-center justify-center"
-      title="Chat on WhatsApp"
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: 1, type: "spring", stiffness: 200 }}
-    >
-      <MessageCircle className="w-7 h-7" />
-    </motion.a>
-  );
-}
-
-/* ── PAGE ── */
-export default function LandingPage() {
-  return (
-    <div className="min-h-screen bg-white">
-      <NavBar />
-      <HeroSection />
-      <ProblemSolutionSection />
-      <FeaturesSection />
-      <PricingSection />
-      <TrustSection />
-      <ContactSection />
-      <Footer />
-      <WhatsAppButton />
+      </footer>
     </div>
   );
 }

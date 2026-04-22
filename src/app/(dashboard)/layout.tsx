@@ -5,6 +5,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
 import NotificationBell from "@/components/layout/NotificationBell";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
 
@@ -57,8 +58,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Topbar fullName={profile.full_name} email={profile.email} role={profile.role} />
         </div>
 
-        <main className="px-4 sm:px-6 lg:px-10 py-8 pb-24">{children}</main>
+        <main className="px-4 sm:px-6 lg:px-10 py-8 pb-28 lg:pb-24">{children}</main>
       </div>
+
+      <MobileBottomNav role={profile.role} />
     </div>
   );
 }

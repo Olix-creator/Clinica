@@ -151,6 +151,283 @@ export async function getClinicAnalytics(
   };
 }
 
+// =====================================================================
+// Global (multi-clinic) analytics scoped to the current user
+// =====================================================================
+//
+// These helpers resolve the set of clinics the caller can see via
+// `clinic_members` (owner / doctor / receptionist) and aggregate KPIs
+// across all of them. Patients fall back to their own personal data
+// (their own appointments + their own profile) so we can render the
+// same dashboard without branching in every page.
+
+async function getVisibleClinicIds(): Promise<{
+  userId: string | null;
+  role: Database["public"]["Enums"]["app_role"] | null;
+  clinicIds: string[];
+}> {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { userId: null, role: null, clinicIds: [] };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+
+  if (!profile) return { userId: userData.user.id, role: null, clinicIds: [] };
+
+  if (profile.role === "patient") {
+    return { userId: userData.user.id, role: profile.role, clinicIds: [] };
+  }
+
+  const { data: memberships } = await supabase
+    .from("clinic_members")
+    .select("clinic_id")
+    .eq("user_id", userData.user.id);
+
+  const ids = Array.from(
+    new Set((memberships ?? []).map((r) => r.clinic_id as string)),
+  );
+  return { userId: userData.user.id, role: profile.role, clinicIds: ids };
+}
+
+export type KpiCard = {
+  value: number;
+  label: string;
+  delta?: number | null;
+};
+
+/**
+ * Count of appointments happening today across all visible clinics.
+ * Patients see only their own appointments.
+ */
+export async function getAppointmentsToday(): Promise<KpiCard> {
+  const supabase = await createClient();
+  const { userId, role, clinicIds } = await getVisibleClinicIds();
+  if (!userId) return { value: 0, label: "Appointments today" };
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  let query = supabase
+    .from("appointments")
+    .select("id", { count: "exact", head: true })
+    .gte("appointment_date", start.toISOString())
+    .lt("appointment_date", end.toISOString());
+
+  if (role === "patient") {
+    query = query.eq("patient_id", userId);
+  } else if (clinicIds.length > 0) {
+    query = query.in("clinic_id", clinicIds);
+  } else {
+    return { value: 0, label: "Appointments today" };
+  }
+
+  const { count, error } = await query;
+  if (error) {
+    console.error("[clinica] getAppointmentsToday:", error.message);
+    return { value: 0, label: "Appointments today" };
+  }
+  return { value: count ?? 0, label: "Appointments today" };
+}
+
+/**
+ * Unique patient count. For staff this is the distinct set of patient_ids
+ * across all appointments in visible clinics (proxy for active patient base).
+ */
+export async function getTotalPatients(): Promise<KpiCard> {
+  const supabase = await createClient();
+  const { userId, role, clinicIds } = await getVisibleClinicIds();
+  if (!userId) return { value: 0, label: "Total patients" };
+
+  if (role === "patient") {
+    // A patient is always one patient — themself.
+    return { value: 1, label: "Total patients" };
+  }
+  if (clinicIds.length === 0) {
+    return { value: 0, label: "Total patients" };
+  }
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("patient_id")
+    .in("clinic_id", clinicIds);
+
+  if (error) {
+    console.error("[clinica] getTotalPatients:", error.message);
+    return { value: 0, label: "Total patients" };
+  }
+  const unique = new Set<string>(
+    (data ?? []).map((r) => r.patient_id as string).filter(Boolean),
+  );
+  return { value: unique.size, label: "Total patients" };
+}
+
+/**
+ * Active doctor count + per-doctor appointment totals across visible clinics.
+ */
+export async function getDoctorStats(): Promise<{
+  card: KpiCard;
+  perDoctor: Array<{ doctor_id: string; name: string; total: number; done: number }>;
+}> {
+  const supabase = await createClient();
+  const { userId, role, clinicIds } = await getVisibleClinicIds();
+  if (!userId || role === "patient" || clinicIds.length === 0) {
+    return { card: { value: 0, label: "Doctors active" }, perDoctor: [] };
+  }
+
+  const { data: doctors, error: docErr } = await supabase
+    .from("doctors")
+    .select(
+      "id, name, profile:profiles!doctors_profile_id_fkey(full_name, email)",
+    )
+    .in("clinic_id", clinicIds);
+
+  if (docErr) {
+    console.error("[clinica] getDoctorStats doctors:", docErr.message);
+    return { card: { value: 0, label: "Doctors active" }, perDoctor: [] };
+  }
+
+  const { data: appts, error: apptErr } = await supabase
+    .from("appointments")
+    .select("doctor_id, status")
+    .in("clinic_id", clinicIds);
+
+  if (apptErr) {
+    console.error("[clinica] getDoctorStats appts:", apptErr.message);
+  }
+
+  type DocRow = {
+    id: string;
+    name: string | null;
+    profile:
+      | { full_name: string | null; email: string | null }
+      | { full_name: string | null; email: string | null }[]
+      | null;
+  };
+  const docs = ((doctors ?? []) as unknown) as DocRow[];
+
+  const counts = new Map<string, { total: number; done: number }>();
+  for (const a of (appts ?? []) as Array<{ doctor_id: string; status: AppointmentStatus }>) {
+    const cur = counts.get(a.doctor_id) ?? { total: 0, done: 0 };
+    cur.total += 1;
+    if (a.status === "done") cur.done += 1;
+    counts.set(a.doctor_id, cur);
+  }
+
+  const perDoctor = docs.map((d) => {
+    const profile = Array.isArray(d.profile) ? d.profile[0] ?? null : d.profile;
+    const name = d.name ?? profile?.full_name ?? profile?.email ?? "Doctor";
+    const c = counts.get(d.id) ?? { total: 0, done: 0 };
+    return { doctor_id: d.id, name, total: c.total, done: c.done };
+  });
+  perDoctor.sort((a, b) => b.total - a.total);
+
+  return {
+    card: { value: docs.length, label: "Doctors active" },
+    perDoctor,
+  };
+}
+
+/**
+ * Completion rate = done / (total - cancelled). Expressed as 0..1 on `.value`
+ * for a KpiCard; UI formats as percentage.
+ */
+export async function getCompletionRate(): Promise<KpiCard & { percent: number }> {
+  const supabase = await createClient();
+  const { userId, role, clinicIds } = await getVisibleClinicIds();
+  if (!userId) return { value: 0, percent: 0, label: "Completion rate" };
+
+  let query = supabase.from("appointments").select("status");
+
+  if (role === "patient") {
+    query = query.eq("patient_id", userId);
+  } else if (clinicIds.length > 0) {
+    query = query.in("clinic_id", clinicIds);
+  } else {
+    return { value: 0, percent: 0, label: "Completion rate" };
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[clinica] getCompletionRate:", error.message);
+    return { value: 0, percent: 0, label: "Completion rate" };
+  }
+
+  let done = 0;
+  let counted = 0;
+  for (const r of (data ?? []) as Array<{ status: AppointmentStatus }>) {
+    if (r.status === "cancelled") continue;
+    counted += 1;
+    if (r.status === "done") done += 1;
+  }
+  const ratio = counted === 0 ? 0 : done / counted;
+  return {
+    value: Math.round(ratio * 100),
+    percent: Math.round(ratio * 100),
+    label: "Completion rate",
+  };
+}
+
+/**
+ * Per-day appointment counts across visible clinics for charting.
+ * Returns an array of {day: 'YYYY-MM-DD', count} length `windowDays`.
+ */
+export async function getAppointmentsTimeseries(
+  windowDays = 14,
+): Promise<Array<{ day: string; count: number }>> {
+  const supabase = await createClient();
+  const { userId, role, clinicIds } = await getVisibleClinicIds();
+  if (!userId) return [];
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - windowDays + 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + windowDays);
+
+  let query = supabase
+    .from("appointments")
+    .select("appointment_date")
+    .gte("appointment_date", start.toISOString())
+    .lt("appointment_date", end.toISOString());
+
+  if (role === "patient") {
+    query = query.eq("patient_id", userId);
+  } else if (clinicIds.length > 0) {
+    query = query.in("clinic_id", clinicIds);
+  } else {
+    return [];
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("[clinica] getAppointmentsTimeseries:", error.message);
+    return [];
+  }
+
+  const dayMap = new Map<string, number>();
+  for (let i = 0; i < windowDays; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    dayMap.set(d.toISOString().slice(0, 10), 0);
+  }
+  for (const r of (data ?? []) as Array<{ appointment_date: string }>) {
+    const key = r.appointment_date.slice(0, 10);
+    if (dayMap.has(key)) dayMap.set(key, (dayMap.get(key) ?? 0) + 1);
+  }
+  return Array.from(dayMap.entries()).map(([day, count]) => ({ day, count }));
+}
+
 export const analyticsService = {
   forClinic: getClinicAnalytics,
+  appointmentsToday: getAppointmentsToday,
+  totalPatients: getTotalPatients,
+  doctorStats: getDoctorStats,
+  completionRate: getCompletionRate,
+  timeseries: getAppointmentsTimeseries,
 };

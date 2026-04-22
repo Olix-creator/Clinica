@@ -18,12 +18,11 @@ update public.appointments
  where time_slot is null;
 
 -- 3. Enforce "one booking per doctor per calendar day + slot" ----------
---    We derive the calendar day from `appointment_date::date` so the
---    (doctor, day, slot) tuple is globally unique. Cancelled rows are
---    excluded so a slot freed up by a cancellation can be re-booked.
-create unique index if not exists appointments_doctor_slot_unique
-  on public.appointments (doctor_id, (appointment_date::date), time_slot)
-  where status <> 'cancelled';
+--    NOTE: The unique index that enforces this lives in migration 0008.
+--    We can't index `(appointment_date::date)` directly because casting
+--    `timestamptz` → `date` is not IMMUTABLE (it depends on the session
+--    timezone). Migration 0008 adds a stored `appointment_day date`
+--    column + trigger and indexes that column instead.
 
 -- 4. Helper RPC to surface booked slots for a (doctor, day) combo ------
 --    Lets the booking UI gray out the unavailable buttons without the

@@ -1,5 +1,6 @@
 import { Calendar, Clock, Stethoscope, Building2, User, Phone } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
+import WhatsAppReminderButton from "./WhatsAppReminderButton";
 import type { AppointmentWithRelations } from "@/lib/data/appointments";
 
 function formatDateTime(iso: string) {
@@ -78,8 +79,16 @@ export function AppointmentCard({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <StatusBadge status={appointment.status} />
+          {perspective !== "patient" && (
+            <WhatsAppReminderButton
+              patientName={patientName}
+              patientPhone={patientPhone}
+              timeSlot={appointment.time_slot}
+              appointmentDate={appointment.appointment_date}
+            />
+          )}
           {actions}
         </div>
       </div>

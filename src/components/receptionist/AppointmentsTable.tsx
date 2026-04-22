@@ -1,5 +1,6 @@
 import { Calendar } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { AppointmentWithRelations } from "@/lib/data/appointments";
 
@@ -25,7 +26,7 @@ export function AppointmentsTable({ appointments }: { appointments: AppointmentW
 
   return (
     <div className="space-y-1">
-      {/* Header row */}
+      {/* Header row (desktop) */}
       <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">
         <div className="col-span-2">When</div>
         <div className="col-span-2">Clinic</div>
@@ -40,7 +41,9 @@ export function AppointmentsTable({ appointments }: { appointments: AppointmentW
           className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center px-4 py-4 rounded-2xl bg-surface-container-low hover:bg-surface-container transition"
         >
           <div className="md:col-span-2">
-            <p className="font-semibold text-sm">{fmtTime(a.appointment_date)}</p>
+            <p className="font-semibold text-sm">
+              {a.time_slot ?? fmtTime(a.appointment_date)}
+            </p>
             <p className="text-xs text-on-surface-variant">{fmtDate(a.appointment_date)}</p>
           </div>
           <div className="md:col-span-2 text-sm truncate">{a.clinic?.name ?? "—"}</div>
@@ -56,7 +59,14 @@ export function AppointmentsTable({ appointments }: { appointments: AppointmentW
               <p className="text-xs text-primary truncate">{a.patient.phone}</p>
             )}
           </div>
-          <div className="md:col-span-2 md:text-right">
+          <div className="md:col-span-2 md:text-right flex md:justify-end items-center gap-2">
+            <WhatsAppReminderButton
+              patientName={a.patient?.full_name ?? a.patient?.email ?? null}
+              patientPhone={a.patient?.phone ?? null}
+              timeSlot={a.time_slot ?? null}
+              appointmentDate={a.appointment_date}
+              variant="icon"
+            />
             <StatusBadge status={a.status} />
           </div>
         </div>

@@ -12,9 +12,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Phone,
+  Sun,
+  CloudSun,
+  Moon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { BookAppointmentResult } from "@/app/(dashboard)/booking/actions";
+import type {
+  BookAppointmentResult,
+  LoadSlotsResult,
+} from "@/app/(dashboard)/booking/actions";
 
 type Clinic = { id: string; name: string };
 type Doctor = {
@@ -23,6 +29,31 @@ type Doctor = {
   specialty: string | null;
   profile: { full_name: string | null; email: string | null } | null;
 };
+
+// Must match TIME_SLOTS in src/lib/data/appointments.ts
+const TIME_SLOTS = [
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+] as const;
+
+const MORNING = TIME_SLOTS.filter((s) => Number(s.slice(0, 2)) < 12);
+const AFTERNOON = TIME_SLOTS.filter(
+  (s) => Number(s.slice(0, 2)) >= 12 && Number(s.slice(0, 2)) < 17,
+);
 
 function isValidPhone(raw: string): boolean {
   const digits = raw.replace(/\D/g, "");
@@ -40,35 +71,66 @@ const STEPS = [
   { n: 4, label: "Confirm", icon: CheckCircle2 },
 ];
 
-function minLocalDateTime() {
-  const d = new Date(Date.now() + 5 * 60 * 1000);
-  d.setSeconds(0, 0);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+// Build a 7-day strip starting today.
+function buildDateStrip(days = 7) {
+  const out: { iso: string; dayLabel: string; dateLabel: string }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    out.push({
+      iso: d.toISOString().slice(0, 10),
+      dayLabel: d.toLocaleDateString(undefined, { weekday: "short" }),
+      dateLabel: String(d.getDate()),
+    });
+  }
+  return out;
+}
+
+// Consider a slot "past" if we're booking today and the slot already elapsed.
+function isSlotPast(dayISO: string, slot: string): boolean {
+  const now = new Date();
+  const todayISO = now.toISOString().slice(0, 10);
+  if (dayISO !== todayISO) return false;
+  const [h, m] = slot.split(":").map(Number);
+  const slotDate = new Date(now);
+  slotDate.setHours(h, m, 0, 0);
+  return slotDate.getTime() <= now.getTime();
 }
 
 export function BookingForm({
   clinics,
   action,
+  loadSlots,
   initialPhone = "",
 }: {
   clinics: Clinic[];
   action: (formData: FormData) => Promise<BookAppointmentResult>;
+  loadSlots: (doctorId: string, dayISO: string) => Promise<LoadSlotsResult>;
   initialPhone?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [clinicId, setClinicId] = useState("");
   const [doctorId, setDoctorId] = useState("");
-  const [appointmentDate, setAppointmentDate] = useState("");
+  const [dayISO, setDayISO] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [timeSlot, setTimeSlot] = useState<string>("");
   const [phone, setPhone] = useState(initialPhone);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const phoneOk = phone.trim() !== "" && isValidPhone(phone);
 
+  const phoneOk = phone.trim() !== "" && isValidPhone(phone);
+  const dateStrip = useMemo(() => buildDateStrip(7), []);
+
+  // Load doctors when a clinic is picked.
   useEffect(() => {
     if (!clinicId) {
       setDoctors([]);
@@ -80,7 +142,9 @@ export function BookingForm({
     const supabase = createClient();
     supabase
       .from("doctors")
-      .select("id, name, specialty, profile:profiles!doctors_profile_id_fkey(full_name, email)")
+      .select(
+        "id, name, specialty, profile:profiles!doctors_profile_id_fkey(full_name, email)",
+      )
       .eq("clinic_id", clinicId)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -94,8 +158,46 @@ export function BookingForm({
     };
   }, [clinicId]);
 
-  const selectedClinic = useMemo(() => clinics.find((c) => c.id === clinicId), [clinics, clinicId]);
-  const selectedDoctor = useMemo(() => doctors.find((d) => d.id === doctorId), [doctors, doctorId]);
+  // Load booked slots when (doctor, day) changes.
+  useEffect(() => {
+    if (!doctorId || !dayISO) {
+      setBookedSlots([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSlots(true);
+    setTimeSlot(""); // reset any prior selection when scope changes
+    loadSlots(doctorId, dayISO).then((res) => {
+      if (cancelled) return;
+      if (res.ok) setBookedSlots(res.booked);
+      else {
+        setBookedSlots([]);
+        toast.error(res.error);
+      }
+      setLoadingSlots(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId, dayISO, loadSlots]);
+
+  const selectedClinic = useMemo(
+    () => clinics.find((c) => c.id === clinicId),
+    [clinics, clinicId],
+  );
+  const selectedDoctor = useMemo(
+    () => doctors.find((d) => d.id === doctorId),
+    [doctors, doctorId],
+  );
+  const selectedDayLabel = useMemo(() => {
+    if (!dayISO) return "";
+    const d = new Date(dayISO + "T00:00:00");
+    return d.toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+  }, [dayISO]);
 
   function submit() {
     setError(null);
@@ -104,16 +206,22 @@ export function BookingForm({
       toast.error("Please enter a valid phone number.");
       return;
     }
+    if (!timeSlot) {
+      setError("Please pick a time slot");
+      toast.error("Please pick a time slot");
+      return;
+    }
     const fd = new FormData();
     fd.set("clinicId", clinicId);
     fd.set("doctorId", doctorId);
-    fd.set("appointmentDate", appointmentDate);
+    fd.set("appointmentDate", dayISO);
+    fd.set("timeSlot", timeSlot);
     fd.set("phone", phone.trim());
     startTransition(async () => {
       const res = await action(fd);
       if (res.ok) {
         setSuccess(true);
-        toast.success("Appointment booked");
+        toast.success("Appointment booked successfully");
         setTimeout(() => {
           router.push("/patient");
           router.refresh();
@@ -288,57 +396,108 @@ export function BookingForm({
         </div>
       )}
 
-      {/* Step 3: Date & time + phone */}
+      {/* Step 3: Date & time slot grid + phone */}
       {step === 3 && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-1">Step 3</p>
-            <h2 className="font-headline text-2xl font-semibold">When &amp; how to reach you.</h2>
+            <h2 className="font-headline text-2xl font-semibold">Pick a time.</h2>
+            <p className="text-sm text-on-surface-variant mt-1">
+              30-minute slot at {selectedClinic?.name}
+              {selectedDoctor ? ` with ${doctorDisplayName(selectedDoctor)}` : ""}.
+            </p>
           </div>
-          <div className="rounded-2xl bg-surface-container-low p-6 space-y-5">
-            <div>
-              <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
-                Date &amp; time
-              </label>
-              <input
-                type="datetime-local"
-                value={appointmentDate}
-                onChange={(e) => setAppointmentDate(e.target.value)}
-                min={minLocalDateTime()}
-                className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-4 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:dark]"
-                required
-              />
-              <p className="text-xs text-on-surface-variant mt-2">
-                Only future times are allowed.
-              </p>
+
+          <div className="rounded-2xl bg-surface-container-low p-5 sm:p-6 ring-1 ring-outline-variant/20">
+            {/* Date strip */}
+            <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto hide-scrollbar pb-4 mb-5 border-b border-outline-variant/20">
+              {dateStrip.map((d) => {
+                const active = d.iso === dayISO;
+                return (
+                  <button
+                    key={d.iso}
+                    type="button"
+                    onClick={() => setDayISO(d.iso)}
+                    className={`flex flex-col items-center justify-center py-2.5 px-4 rounded-xl min-w-[76px] transition ${
+                      active
+                        ? "bg-primary text-on-primary-fixed ring-2 ring-primary shadow-emerald"
+                        : "bg-surface-container hover:bg-surface-container-highest text-on-surface"
+                    }`}
+                  >
+                    <span
+                      className={`text-[10px] mb-1 uppercase font-semibold tracking-wider ${
+                        active ? "opacity-90" : "text-on-surface-variant"
+                      }`}
+                    >
+                      {d.dayLabel}
+                    </span>
+                    <span className="text-lg font-bold">{d.dateLabel}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div>
-              <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
-                Phone number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 555 123 4567"
-                  autoComplete="tel"
-                  required
-                  className="w-full pl-11 pr-4 py-4 rounded-xl bg-surface-container-highest border-0 text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition"
+            {/* Time slots grid */}
+            {loadingSlots ? (
+              <div className="py-10 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <SlotSection
+                  title="Morning"
+                  Icon={Sun}
+                  slots={MORNING as unknown as string[]}
+                  dayISO={dayISO}
+                  bookedSlots={bookedSlots}
+                  value={timeSlot}
+                  onChange={setTimeSlot}
+                />
+                <SlotSection
+                  title="Afternoon"
+                  Icon={CloudSun}
+                  slots={AFTERNOON as unknown as string[]}
+                  dayISO={dayISO}
+                  bookedSlots={bookedSlots}
+                  value={timeSlot}
+                  onChange={setTimeSlot}
                 />
               </div>
-              <p
-                className={`text-xs mt-2 ${
-                  phone && !phoneOk ? "text-error" : "text-on-surface-variant"
-                }`}
-              >
-                {phone && !phoneOk
-                  ? "That doesn't look like a valid phone number."
-                  : "So the clinic can reach you if plans change."}
-              </p>
+            )}
+
+            {timeSlot && (
+              <div className="mt-5 rounded-xl bg-primary-container/20 border border-primary/30 px-4 py-3 text-sm text-primary flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                Selected {selectedDayLabel} at {timeSlot}.
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-surface-container-low p-5 sm:p-6">
+            <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
+              Phone number
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1 555 123 4567"
+                autoComplete="tel"
+                required
+                className="w-full pl-11 pr-4 py-4 rounded-xl bg-surface-container-highest border-0 text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition"
+              />
             </div>
+            <p
+              className={`text-xs mt-2 ${
+                phone && !phoneOk ? "text-error" : "text-on-surface-variant"
+              }`}
+            >
+              {phone && !phoneOk
+                ? "That doesn't look like a valid phone number."
+                : "So the clinic can reach you if plans change."}
+            </p>
           </div>
         </div>
       )}
@@ -361,15 +520,10 @@ export function BookingForm({
               },
               {
                 label: "When",
-                value: appointmentDate
-                  ? new Date(appointmentDate).toLocaleString(undefined, {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "—",
+                value:
+                  selectedDayLabel && timeSlot
+                    ? `${selectedDayLabel} · ${timeSlot}`
+                    : "—",
                 icon: CalendarClock,
               },
               {
@@ -415,7 +569,7 @@ export function BookingForm({
               pending ||
               (step === 1 && !clinicId) ||
               (step === 2 && !doctorId) ||
-              (step === 3 && (!appointmentDate || !phoneOk))
+              (step === 3 && (!timeSlot || !phoneOk))
             }
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold text-sm shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -437,3 +591,72 @@ export function BookingForm({
     </div>
   );
 }
+
+function SlotSection({
+  title,
+  Icon,
+  slots,
+  dayISO,
+  bookedSlots,
+  value,
+  onChange,
+}: {
+  title: string;
+  Icon: typeof Sun;
+  slots: string[];
+  dayISO: string;
+  bookedSlots: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3 text-on-surface-variant">
+        <Icon className="w-4 h-4" />
+        <h3 className="text-xs font-semibold uppercase tracking-wider">{title}</h3>
+      </div>
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+        {slots.map((slot) => {
+          const isBooked = bookedSlots.includes(slot);
+          const isPast = isSlotPast(dayISO, slot);
+          const disabled = isBooked || isPast;
+          const active = value === slot;
+          if (disabled) {
+            return (
+              <button
+                key={slot}
+                type="button"
+                disabled
+                className="py-3 px-2 rounded-xl bg-surface-container-lowest text-on-surface-variant/50 ring-1 ring-outline-variant/20 flex flex-col items-center justify-center cursor-not-allowed relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(120,120,120,0.08)_10px,rgba(120,120,120,0.08)_20px)]" />
+                <span className="font-medium text-sm relative z-10 line-through">{slot}</span>
+                <span className="text-[10px] mt-0.5 relative z-10">
+                  {isBooked ? "Booked" : "Past"}
+                </span>
+              </button>
+            );
+          }
+          return (
+            <button
+              key={slot}
+              type="button"
+              onClick={() => onChange(slot)}
+              className={`py-3 px-2 rounded-xl flex flex-col items-center justify-center transition ${
+                active
+                  ? "bg-primary text-on-primary-fixed ring-2 ring-primary shadow-emerald scale-[1.02]"
+                  : "bg-surface-container ring-1 ring-outline-variant/30 hover:bg-surface-container-highest hover:scale-[1.02]"
+              }`}
+            >
+              <span className="font-medium text-sm">{slot}</span>
+              {active && <span className="text-[10px] mt-0.5 font-semibold">Selected</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Unused export kept for legacy; Moon icon imported but not needed.
+void Moon;

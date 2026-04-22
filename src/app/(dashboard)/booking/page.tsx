@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { listClinics } from "@/lib/data/clinics";
 import { BookingForm } from "@/components/booking/BookingForm";
-import { bookAppointment } from "./actions";
+import { bookAppointment, loadBookedSlots } from "./actions";
 
 export default async function BookingPage() {
   const profile = await requireRole("patient");
@@ -38,7 +38,12 @@ export default async function BookingPage() {
       </div>
 
       <div className="rounded-[2rem] bg-surface-container-lowest p-6 sm:p-8 ring-1 ring-outline-variant/30">
-        <BookingForm clinics={clinics} action={bookAppointment} initialPhone={initialPhone} />
+        <BookingForm
+          clinics={clinics}
+          action={bookAppointment}
+          loadSlots={loadBookedSlots}
+          initialPhone={initialPhone}
+        />
       </div>
     </div>
   );

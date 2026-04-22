@@ -21,6 +21,7 @@ export type Database = {
           id: string
           patient_id: string
           status: Database["public"]["Enums"]["appointment_status"]
+          time_slot: string | null
         }
         Insert: {
           appointment_date: string
@@ -30,6 +31,7 @@ export type Database = {
           id?: string
           patient_id: string
           status?: Database["public"]["Enums"]["appointment_status"]
+          time_slot?: string | null
         }
         Update: {
           appointment_date?: string
@@ -39,6 +41,7 @@ export type Database = {
           id?: string
           patient_id?: string
           status?: Database["public"]["Enums"]["appointment_status"]
+          time_slot?: string | null
         }
         Relationships: []
       }

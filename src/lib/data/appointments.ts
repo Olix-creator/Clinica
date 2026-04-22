@@ -44,15 +44,84 @@ export async function updateProfilePhone(phone: string): Promise<{ error: string
   return { error: null };
 }
 
+// Canonical 30-minute grid used everywhere in the UI. Keep this list in sync
+// with whatever the clinic actually supports — these 16 slots cover 09:00 →
+// 16:30 which matches the current schedule.
+export const TIME_SLOTS: string[] = [
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+];
+
+export function isValidTimeSlot(raw: string): boolean {
+  return TIME_SLOTS.includes(raw);
+}
+
+/**
+ * Return the set of already-booked time_slots for a given doctor on a given
+ * calendar day (ISO "YYYY-MM-DD"). Uses the `get_booked_slots` RPC so we
+ * bypass the per-row RLS filter — the RPC only returns opaque slot strings,
+ * never patient-identifying columns.
+ */
+export async function getBookedSlots(
+  doctorId: string,
+  dayISO: string,
+): Promise<string[]> {
+  if (!doctorId || !dayISO) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_booked_slots", {
+    p_doctor_id: doctorId,
+    p_day: dayISO,
+  });
+  if (error) {
+    // The RPC may not be deployed yet in older environments — fall back to
+    // a direct read that will still succeed for the user's own bookings.
+    console.error("[clinica] getBookedSlots RPC:", error.message);
+    const start = new Date(dayISO + "T00:00:00");
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const { data: rows, error: fallbackErr } = await supabase
+      .from("appointments")
+      .select("time_slot, status")
+      .eq("doctor_id", doctorId)
+      .gte("appointment_date", start.toISOString())
+      .lt("appointment_date", end.toISOString());
+    if (fallbackErr) {
+      console.error("[clinica] getBookedSlots fallback:", fallbackErr.message);
+      return [];
+    }
+    return (rows ?? [])
+      .filter((r) => r.status !== "cancelled" && r.time_slot)
+      .map((r) => r.time_slot as string);
+  }
+  // `data` comes back as string[] from `returns setof text`.
+  return ((data ?? []) as unknown as string[]).filter(Boolean);
+}
+
 export async function createAppointment({
   doctorId,
   clinicId,
   appointmentDate,
+  timeSlot,
   patientId,
 }: {
   doctorId: string;
   clinicId: string;
-  appointmentDate: string;
+  appointmentDate: string; // "YYYY-MM-DD" (calendar day) OR full ISO
+  timeSlot?: string;
   patientId?: string;
 }): Promise<{ data: Appointment | null; error: string | null }> {
   const supabase = await createClient();
@@ -61,9 +130,33 @@ export async function createAppointment({
 
   if (!doctorId) return { data: null, error: "Please select a doctor" };
   if (!clinicId) return { data: null, error: "Please select a clinic" };
-  if (!appointmentDate) return { data: null, error: "Please pick a date and time" };
+  if (!appointmentDate) return { data: null, error: "Please pick a date" };
 
-  const when = new Date(appointmentDate);
+  // Resolve the final appointment timestamp. If the caller sent us
+  // a calendar day + explicit slot ("2026-04-22" + "10:30") we compose
+  // them. Otherwise we fall back to the legacy datetime-local path.
+  let when: Date;
+  let slot: string | null = null;
+
+  if (timeSlot) {
+    if (!isValidTimeSlot(timeSlot)) {
+      return { data: null, error: "Please pick a valid time slot" };
+    }
+    const day = appointmentDate.slice(0, 10); // tolerate full ISO too
+    when = new Date(`${day}T${timeSlot}:00`);
+    slot = timeSlot;
+  } else {
+    when = new Date(appointmentDate);
+    // Derive a slot from the datetime for the legacy callers so the
+    // unique index still catches collisions.
+    if (!Number.isNaN(when.getTime())) {
+      const hh = String(when.getHours()).padStart(2, "0");
+      const mm = String(when.getMinutes()).padStart(2, "0");
+      const derived = `${hh}:${mm}`;
+      slot = isValidTimeSlot(derived) ? derived : null;
+    }
+  }
+
   if (Number.isNaN(when.getTime())) return { data: null, error: "Invalid date" };
   if (when.getTime() < Date.now()) return { data: null, error: "Date must be in the future" };
 
@@ -79,6 +172,16 @@ export async function createAppointment({
   }
   if (!doctorRow) return { data: null, error: "Selected doctor does not belong to this clinic" };
 
+  // Belt-and-braces pre-check for double-booking so we can surface a nice
+  // error even if the unique index hasn't been applied to the DB yet.
+  if (slot) {
+    const dayISO = when.toISOString().slice(0, 10);
+    const booked = await getBookedSlots(doctorId, dayISO);
+    if (booked.includes(slot)) {
+      return { data: null, error: "This time slot is already booked" };
+    }
+  }
+
   const { data, error } = await supabase
     .from("appointments")
     .insert({
@@ -86,6 +189,7 @@ export async function createAppointment({
       doctor_id: doctorId,
       clinic_id: clinicId,
       appointment_date: when.toISOString(),
+      time_slot: slot,
     })
     .select("*")
     .single();
@@ -94,7 +198,7 @@ export async function createAppointment({
     console.error("[clinica] createAppointment insert:", error.message, error.code);
     // 23505 = unique_violation (double-booking partial index)
     if (error.code === "23505") {
-      return { data: null, error: "That time slot is already taken. Please pick another." };
+      return { data: null, error: "This time slot is already booked" };
     }
     return { data: null, error: error.message };
   }

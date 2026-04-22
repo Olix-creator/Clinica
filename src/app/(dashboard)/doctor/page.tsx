@@ -14,6 +14,7 @@ import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
 import { analyticsService } from "@/lib/services/analyticsService";
 import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
+import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
 import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel";
@@ -241,6 +242,13 @@ export default async function DoctorPage() {
                         )}
                       </p>
                     </div>
+                    <WhatsAppReminderButton
+                      patientName={a.patient?.full_name ?? a.patient?.email ?? null}
+                      patientPhone={a.patient?.phone ?? null}
+                      timeSlot={a.time_slot ?? null}
+                      appointmentDate={a.appointment_date}
+                      variant="icon"
+                    />
                     <AppointmentStatusActions id={a.id} revalidate="/doctor" />
                   </div>
                 );
@@ -328,7 +336,16 @@ export default async function DoctorPage() {
                     </p>
                   )}
                 </div>
-                <AppointmentStatusActions id={a.id} revalidate="/doctor" />
+                <div className="flex items-center gap-2">
+                  <WhatsAppReminderButton
+                    patientName={a.patient?.full_name ?? a.patient?.email ?? null}
+                    patientPhone={a.patient?.phone ?? null}
+                    timeSlot={a.time_slot ?? null}
+                    appointmentDate={a.appointment_date}
+                    variant="icon"
+                  />
+                  <AppointmentStatusActions id={a.id} revalidate="/doctor" />
+                </div>
               </div>
             ))}
           </div>

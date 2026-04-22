@@ -1,7 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateAppointmentStatus, type AppointmentStatus } from "@/lib/data/appointments";
+import {
+  rescheduleAppointment,
+  updateAppointmentStatus,
+  type AppointmentStatus,
+} from "@/lib/data/appointments";
 import { createClinic } from "@/lib/data/clinics";
 import {
   inviteClinicMember,
@@ -46,6 +50,31 @@ export async function inviteMemberAction(formData: FormData): Promise<Result> {
   }
 
   const { error } = await inviteClinicMember({ clinicId, email, role });
+  if (error) return { ok: false, error };
+  revalidatePath("/doctor");
+  return { ok: true };
+}
+
+export async function rescheduleAction(formData: FormData): Promise<Result> {
+  const id = String(formData.get("id") ?? "");
+  const appointmentDate = String(formData.get("appointmentDate") ?? "").trim();
+  const timeSlot = String(formData.get("timeSlot") ?? "").trim();
+  const doctorId = String(formData.get("doctorId") ?? "").trim();
+  if (!id) return { ok: false, error: "Missing appointment id" };
+  const { error } = await rescheduleAppointment(id, {
+    appointmentDate: appointmentDate || undefined,
+    timeSlot: timeSlot || undefined,
+    doctorId: doctorId || undefined,
+  });
+  if (error) return { ok: false, error };
+  revalidatePath("/doctor");
+  return { ok: true };
+}
+
+export async function cancelAppointmentAction(formData: FormData): Promise<Result> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, error: "Missing appointment id" };
+  const { error } = await updateAppointmentStatus(id, "cancelled");
   if (error) return { ok: false, error };
   revalidatePath("/doctor");
   return { ok: true };

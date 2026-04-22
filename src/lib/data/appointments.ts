@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
+import { TIME_SLOTS, isValidTimeSlot } from "@/lib/appointments/slots";
+
+export { TIME_SLOTS, isValidTimeSlot };
 
 export type AppointmentStatus = Database["public"]["Enums"]["appointment_status"];
 export type Appointment = Database["public"]["Tables"]["appointments"]["Row"];
@@ -42,32 +45,6 @@ export async function updateProfilePhone(phone: string): Promise<{ error: string
     return { error: error.message };
   }
   return { error: null };
-}
-
-// Canonical 30-minute grid used everywhere in the UI. Keep this list in sync
-// with whatever the clinic actually supports — these 16 slots cover 09:00 →
-// 16:30 which matches the current schedule.
-export const TIME_SLOTS: string[] = [
-  "09:00",
-  "09:30",
-  "10:00",
-  "10:30",
-  "11:00",
-  "11:30",
-  "12:00",
-  "12:30",
-  "13:00",
-  "13:30",
-  "14:00",
-  "14:30",
-  "15:00",
-  "15:30",
-  "16:00",
-  "16:30",
-];
-
-export function isValidTimeSlot(raw: string): boolean {
-  return TIME_SLOTS.includes(raw);
 }
 
 /**
@@ -327,4 +304,147 @@ export async function lookupPatientByEmail(email: string): Promise<{ id: string;
     return null;
   }
   return data;
+}
+
+export type PatientSearchHit = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+/**
+ * Search patients by name, email, or phone. Used by the receptionist's Express
+ * Booking patient combobox. Returns up to `limit` matches, sorted by name.
+ *
+ * Note: RLS on `profiles` only lets a user read their own row. The receptionist
+ * can nevertheless see other patients because the Supabase policy for their
+ * role grants select on all profiles (see migration 0001). If that changes,
+ * this helper will need to move behind a SECURITY DEFINER RPC.
+ */
+export async function searchPatients(
+  query: string,
+  limit = 8,
+): Promise<PatientSearchHit[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const supabase = await createClient();
+
+  // Escape % and _ so an attacker can't broaden the search space.
+  const escaped = q.replace(/[%_]/g, (m) => `\\${m}`);
+  const like = `%${escaped}%`;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, phone")
+    .eq("role", "patient")
+    .or(`full_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`)
+    .order("full_name", { ascending: true, nullsFirst: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[clinica] searchPatients:", error.message);
+    return [];
+  }
+  return (data ?? []) as PatientSearchHit[];
+}
+
+/**
+ * Reschedule an existing appointment. Accepts any subset of
+ * `{ appointmentDate, timeSlot, doctorId }` — the untouched fields keep their
+ * current values. Re-runs the same pre-flight checks as `createAppointment`
+ * so we catch "doctor isn't in this clinic" and "slot is already booked"
+ * before the DB-level unique index does.
+ */
+export async function rescheduleAppointment(
+  id: string,
+  patch: {
+    appointmentDate?: string; // YYYY-MM-DD
+    timeSlot?: string; // HH:MM
+    doctorId?: string;
+  },
+): Promise<{ error: string | null }> {
+  if (!id) return { error: "Missing appointment id" };
+  const supabase = await createClient();
+
+  // Load the current row so we know what to keep.
+  const { data: current, error: loadErr } = await supabase
+    .from("appointments")
+    .select("id, doctor_id, clinic_id, appointment_date, time_slot")
+    .eq("id", id)
+    .maybeSingle();
+  if (loadErr) {
+    console.error("[clinica] rescheduleAppointment load:", loadErr.message);
+    return { error: loadErr.message };
+  }
+  if (!current) return { error: "Appointment not found" };
+
+  const nextDoctorId = patch.doctorId ?? current.doctor_id;
+  const nextSlot = patch.timeSlot ?? current.time_slot ?? null;
+
+  // Compute the next timestamptz. Day comes from `patch.appointmentDate` if
+  // provided, otherwise from the current row (UTC).
+  const currentDay = new Date(current.appointment_date).toISOString().slice(0, 10);
+  const nextDay = patch.appointmentDate?.slice(0, 10) ?? currentDay;
+
+  if (nextSlot && !isValidTimeSlot(nextSlot)) {
+    return { error: "Please pick a valid time slot" };
+  }
+
+  const when = nextSlot
+    ? new Date(`${nextDay}T${nextSlot}:00`)
+    : new Date(`${nextDay}T${new Date(current.appointment_date)
+        .toISOString()
+        .slice(11, 16)}:00`);
+
+  if (Number.isNaN(when.getTime())) return { error: "Invalid date" };
+  if (when.getTime() < Date.now() - 60 * 1000) {
+    return { error: "New date must be in the future" };
+  }
+
+  // If the doctor changed, verify they belong to the same clinic.
+  if (nextDoctorId !== current.doctor_id) {
+    const { data: doctorRow, error: doctorErr } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("id", nextDoctorId)
+      .eq("clinic_id", current.clinic_id)
+      .maybeSingle();
+    if (doctorErr) {
+      console.error("[clinica] rescheduleAppointment doctor lookup:", doctorErr.message);
+      return { error: "Could not verify doctor" };
+    }
+    if (!doctorRow) return { error: "Doctor is not in this clinic" };
+  }
+
+  // Pre-check: only flag a collision if we're actually moving to a *different*
+  // (doctor, day, slot) triple. Rescheduling onto the same slot is a no-op.
+  if (nextSlot) {
+    const booked = await getBookedSlots(nextDoctorId, nextDay);
+    const stayingPut =
+      nextDoctorId === current.doctor_id &&
+      nextSlot === current.time_slot &&
+      nextDay === currentDay;
+    if (!stayingPut && booked.includes(nextSlot)) {
+      return { error: "This time slot is already booked" };
+    }
+  }
+
+  const { error } = await supabase
+    .from("appointments")
+    .update({
+      doctor_id: nextDoctorId,
+      appointment_date: when.toISOString(),
+      time_slot: nextSlot,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error("[clinica] rescheduleAppointment update:", error.message, error.code);
+    if (error.code === "23505") {
+      return { error: "This time slot is already booked" };
+    }
+    return { error: error.message };
+  }
+  return { error: null };
 }

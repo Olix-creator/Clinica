@@ -1,8 +1,15 @@
 import { Calendar } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
+import CallButton from "@/components/dashboard/CallButton";
+import CancelAppointmentButton from "@/components/dashboard/CancelAppointmentButton";
+import RescheduleModal from "@/components/dashboard/RescheduleModal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { AppointmentWithRelations } from "@/lib/data/appointments";
+import {
+  cancelAppointmentAction,
+  rescheduleAction,
+} from "@/app/(dashboard)/receptionist/actions";
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -59,7 +66,8 @@ export function AppointmentsTable({ appointments }: { appointments: AppointmentW
               <p className="text-xs text-primary truncate">{a.patient.phone}</p>
             )}
           </div>
-          <div className="md:col-span-2 md:text-right flex md:justify-end items-center gap-2">
+          <div className="md:col-span-2 md:text-right flex md:justify-end items-center gap-2 flex-wrap">
+            <CallButton phone={a.patient?.phone ?? null} variant="icon" />
             <WhatsAppReminderButton
               patientName={a.patient?.full_name ?? a.patient?.email ?? null}
               patientPhone={a.patient?.phone ?? null}
@@ -68,6 +76,20 @@ export function AppointmentsTable({ appointments }: { appointments: AppointmentW
               variant="icon"
             />
             <StatusBadge status={a.status} />
+            {a.status !== "cancelled" && a.status !== "done" && (
+              <>
+                <RescheduleModal
+                  id={a.id}
+                  clinicId={a.clinic_id}
+                  currentDoctorId={a.doctor_id}
+                  currentDay={new Date(a.appointment_date).toISOString().slice(0, 10)}
+                  currentSlot={a.time_slot}
+                  allowDoctorChange
+                  action={rescheduleAction}
+                />
+                <CancelAppointmentButton id={a.id} action={cancelAppointmentAction} />
+              </>
+            )}
           </div>
         </div>
       ))}

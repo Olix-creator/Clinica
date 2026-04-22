@@ -1,0 +1,130 @@
+import type { AppointmentWithRelations } from "@/lib/data/appointments";
+import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
+import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
+import CallButton from "@/components/dashboard/CallButton";
+import CancelAppointmentButton from "@/components/dashboard/CancelAppointmentButton";
+import RescheduleModal from "@/components/dashboard/RescheduleModal";
+import { cancelAppointmentAction, rescheduleAction } from "@/app/(dashboard)/doctor/actions";
+
+function patientLabel(a: AppointmentWithRelations): string {
+  return a.patient?.full_name ?? a.patient?.email ?? "Patient";
+}
+
+function initials(label: string): string {
+  return label
+    .split(/\s+/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function fmtSlot(iso: string, slot: string | null) {
+  if (slot) return slot;
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function dayOf(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+export default function DoctorAppointmentRow({
+  appointment,
+}: {
+  appointment: AppointmentWithRelations;
+}) {
+  const a = appointment;
+  const isCancelled = a.status === "cancelled";
+  const isDone = a.status === "done";
+
+  return (
+    <div
+      className={[
+        "rounded-[1.5rem] p-2 pr-3 sm:pr-5 flex flex-col lg:flex-row items-start lg:items-center gap-3 transition group",
+        isCancelled
+          ? "bg-surface-container-low opacity-60"
+          : "bg-surface-container-low hover:bg-surface-container",
+      ].join(" ")}
+    >
+      {/* Time slot */}
+      <div className="bg-surface-container rounded-[1.25rem] px-5 py-3 flex flex-col justify-center min-w-[120px] text-center border border-outline-variant/10 self-stretch lg:self-auto">
+        <span
+          className={`text-base font-bold ${
+            isCancelled ? "text-on-surface-variant line-through" : "text-on-surface"
+          }`}
+        >
+          {fmtSlot(a.appointment_date, a.time_slot)}
+        </span>
+        <span className="text-[10px] font-medium text-on-surface-variant mt-0.5 uppercase tracking-wider">
+          {a.status === "done" ? "Done" : a.status === "cancelled" ? "Cancelled" : "30 min"}
+        </span>
+      </div>
+
+      {/* Patient */}
+      <div className="flex-1 px-2 py-1 flex flex-col sm:flex-row sm:items-center gap-4 min-w-0 w-full">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold text-on-surface-variant">
+              {initials(patientLabel(a))}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <h4
+              className={`text-sm sm:text-base font-semibold truncate ${
+                isCancelled ? "line-through text-on-surface-variant" : "text-on-surface"
+              }`}
+            >
+              {patientLabel(a)}
+            </h4>
+            {a.patient?.phone && (
+              <p className="text-xs text-on-surface-variant truncate">{a.patient.phone}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="sm:ml-auto">
+          <StatusBadge status={a.status} />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 self-end lg:self-auto w-full lg:w-auto justify-end pt-3 border-t border-outline-variant/10 lg:border-none lg:pt-0">
+        {/* Contact */}
+        <div className="flex items-center gap-1.5 pr-3 mr-1 border-r border-outline-variant/20">
+          <CallButton phone={a.patient?.phone ?? null} variant="icon" />
+          <WhatsAppReminderButton
+            patientName={a.patient?.full_name ?? a.patient?.email ?? null}
+            patientPhone={a.patient?.phone ?? null}
+            timeSlot={a.time_slot ?? null}
+            appointmentDate={a.appointment_date}
+            variant="icon"
+          />
+        </div>
+
+        {/* Quick status */}
+        {!isDone && !isCancelled && <AppointmentStatusActions id={a.id} revalidate="/doctor" />}
+
+        {/* Reschedule + Cancel (hidden on done/cancelled) */}
+        {!isDone && !isCancelled && (
+          <>
+            <RescheduleModal
+              id={a.id}
+              clinicId={a.clinic_id}
+              currentDoctorId={a.doctor_id}
+              currentDay={dayOf(a.appointment_date)}
+              currentSlot={a.time_slot}
+              allowDoctorChange={false}
+              action={rescheduleAction}
+            />
+            <CancelAppointmentButton id={a.id} action={cancelAppointmentAction} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,13 +1,20 @@
 import { ClipboardList, CalendarDays, Users, Activity } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { listClinics } from "@/lib/data/clinics";
-import { getAppointmentsByRole, type AppointmentStatus } from "@/lib/data/appointments";
+import { listAllDoctors } from "@/lib/data/doctors";
+import {
+  getAppointmentsByRole,
+  type AppointmentStatus,
+  type AppointmentWithRelations,
+} from "@/lib/data/appointments";
 import { AppointmentsTable } from "@/components/receptionist/AppointmentsTable";
 import { DateFilter } from "@/components/receptionist/DateFilter";
 import { StatusFilter } from "@/components/receptionist/StatusFilter";
 import { NameFilter } from "@/components/receptionist/NameFilter";
 import { AddAppointmentModal } from "@/components/receptionist/AddAppointmentModal";
 import { BootstrapPanel } from "@/components/receptionist/BootstrapPanel";
+import ExpressBookingPanel from "@/components/receptionist/ExpressBookingPanel";
+import DoctorDayColumn from "@/components/receptionist/DoctorDayColumn";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
 
 const VALID_STATUSES: AppointmentStatus[] = ["pending", "confirmed", "done", "cancelled"];
@@ -26,10 +33,33 @@ export default async function ReceptionistPage({
       ? (sp.status as AppointmentStatus)
       : null;
 
-  const [clinics, { data: allAppointments }] = await Promise.all([
+  // Resolve "today" in the server's TZ for the per-doctor day view.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const viewDateISO = dateISO ?? todayISO;
+
+  const [clinics, doctors, { data: allAppointments }, { data: dayAppointments }] = await Promise.all([
     listClinics(),
+    listAllDoctors(),
     getAppointmentsByRole({ dateISO }),
+    // Always also fetch the focused day (used by the per-doctor bento) so
+    // the user can switch date filters without losing that view.
+    getAppointmentsByRole({ dateISO: viewDateISO }),
   ]);
+
+  // Bucket the day's appointments by doctor for the Full Day View.
+  const appointmentsByDoctor = new Map<string, AppointmentWithRelations[]>();
+  for (const a of dayAppointments) {
+    const list = appointmentsByDoctor.get(a.doctor_id) ?? [];
+    list.push(a);
+    appointmentsByDoctor.set(a.doctor_id, list);
+  }
+  // Only show doctors that have appointments on the focused day.
+  const doctorsWithAppointments = doctors
+    .filter((d) => appointmentsByDoctor.has(d.id))
+    .map((d) => ({
+      doctor: d,
+      appointments: appointmentsByDoctor.get(d.id) ?? [],
+    }));
 
   const filtered = statusFilter
     ? allAppointments.filter((a) => a.status === statusFilter)
@@ -91,6 +121,38 @@ export default async function ReceptionistPage({
           </div>
         ))}
       </div>
+
+      {/* Express Booking — the fastest path from “walk-in patient” to “on the schedule” */}
+      <ExpressBookingPanel />
+
+      {/* Full Day View — per-doctor bento for the focused day */}
+      {doctorsWithAppointments.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">
+                Full day view
+              </p>
+              <h2 className="font-headline text-xl font-semibold mt-1">
+                {dateISO ? `${dateISO}` : "Today"} · by doctor
+              </h2>
+            </div>
+            <span className="text-xs text-on-surface-variant">
+              {doctorsWithAppointments.length} doctor
+              {doctorsWithAppointments.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {doctorsWithAppointments.map(({ doctor, appointments }) => (
+              <DoctorDayColumn
+                key={doctor.id}
+                doctor={doctor}
+                appointments={appointments}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Clinic & doctor bootstrap (collapsed) */}
       <BootstrapPanel clinics={clinics} />

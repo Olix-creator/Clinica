@@ -4,7 +4,6 @@ import {
   CalendarDays,
   CheckCircle2,
   AlertCircle,
-  ChevronRight,
   Phone,
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
@@ -13,12 +12,14 @@ import { getAppointmentsByRole, type AppointmentWithRelations } from "@/lib/data
 import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
 import { analyticsService } from "@/lib/services/analyticsService";
-import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
 import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
+import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
 import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
 import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel";
 import { AnalyticsStrip } from "@/components/doctor/AnalyticsStrip";
+import TodayQueue from "@/components/doctor/TodayQueue";
+import DoctorAppointmentRow from "@/components/doctor/DoctorAppointmentRow";
 
 function patientLabel(a: AppointmentWithRelations): string {
   return a.patient?.full_name ?? a.patient?.email ?? "Patient";
@@ -34,17 +35,6 @@ function fmtTime(iso: string) {
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-}
-
-type ScheduleState = "done" | "active" | "upcoming";
-
-function stateForAppt(a: AppointmentWithRelations): ScheduleState {
-  if (a.status === "done") return "done";
-  const start = new Date(a.appointment_date).getTime();
-  const diff = start - Date.now();
-  // Active window: within 30 minutes window around the slot.
-  if (diff <= 15 * 60 * 1000 && diff >= -45 * 60 * 1000) return "active";
-  return "upcoming";
 }
 
 export default async function DoctorPage() {
@@ -105,8 +95,16 @@ export default async function DoctorPage() {
   }
 
   // Today's list (used by the schedule section) + all appointments for Upcoming (next 14 days).
-  const { data: todayAppointments } = await getAppointmentsByRole({ todayOnly: true });
+  const { data: todayAppointmentsRaw } = await getAppointmentsByRole({ todayOnly: true });
   const { data: allAppointments } = await getAppointmentsByRole();
+
+  // Sort today's list explicitly by time_slot (fallback to appointment_date)
+  // so the queue + upcoming list always render in real chronological order.
+  const todayAppointments = [...todayAppointmentsRaw].sort((a, b) => {
+    const keyA = a.time_slot ?? new Date(a.appointment_date).toISOString().slice(11, 16);
+    const keyB = b.time_slot ?? new Date(b.appointment_date).toISOString().slice(11, 16);
+    return keyA.localeCompare(keyB);
+  });
 
   const now = Date.now();
   const twoWeeks = now + 14 * 24 * 60 * 60 * 1000;
@@ -124,9 +122,6 @@ export default async function DoctorPage() {
 
   const pending = todayAppointments.filter((a) => a.status === "pending");
   const doneCount = todayAppointments.filter((a) => a.status === "done").length;
-  const priority = [...todayAppointments, ...upcoming]
-    .filter((a) => a.status === "pending" || a.status === "confirmed")
-    .slice(0, 4);
 
   const doctorDisplay = doctorLabel(profile.full_name, doctor?.name ?? null);
   const channelKey = doctor?.id ?? primaryClinicId ?? profile.id;
@@ -189,115 +184,26 @@ export default async function DoctorPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
-        {/* Today's schedule */}
-        <section className="col-span-12 lg:col-span-8 rounded-[2rem] bg-surface-container-low p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Today&rsquo;s schedule</p>
-              <h2 className="font-headline text-xl font-semibold mt-1">Your appointments</h2>
-            </div>
-            <span className="text-xs text-on-surface-variant">{todayAppointments.length} total</span>
+      {/* Queue: current + next */}
+      <TodayQueue appointments={todayAppointments} />
+
+      {/* Full today list */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between border-b border-surface-container-highest pb-3">
+          <h2 className="font-headline text-xl font-semibold">Today&rsquo;s schedule</h2>
+          <span className="text-xs text-on-surface-variant">{todayAppointments.length} total</span>
+        </div>
+
+        {todayAppointments.length === 0 ? (
+          <EmptyState icon={CalendarDays} title="No appointments today" description="Enjoy the calm." />
+        ) : (
+          <div className="space-y-3">
+            {todayAppointments.map((a) => (
+              <DoctorAppointmentRow key={a.id} appointment={a} />
+            ))}
           </div>
-
-          {todayAppointments.length === 0 ? (
-            <EmptyState icon={CalendarDays} title="No appointments today" description="Enjoy the calm." />
-          ) : (
-            <div className="space-y-2">
-              {todayAppointments.map((a) => {
-                const state = stateForAppt(a);
-                const indicator =
-                  state === "active"
-                    ? "bg-primary"
-                    : state === "done"
-                    ? "bg-outline-variant"
-                    : "bg-surface-bright";
-                const rowClass =
-                  state === "active"
-                    ? "bg-surface-container-highest ring-1 ring-primary/30"
-                    : state === "done"
-                    ? "opacity-70 bg-surface-container"
-                    : "bg-surface-container hover:bg-surface-container-highest transition";
-                return (
-                  <div
-                    key={a.id}
-                    className={`flex items-center gap-4 p-4 pr-5 rounded-2xl relative overflow-hidden ${rowClass}`}
-                  >
-                    <span className={`absolute left-0 top-0 bottom-0 w-1 ${indicator}`} />
-                    <div className="w-16 text-center flex-shrink-0">
-                      <p className="font-headline text-lg font-semibold">{fmtTime(a.appointment_date)}</p>
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-on-surface-variant">
-                        {state === "active" ? "Now" : state === "done" ? "Done" : "Next"}
-                      </p>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{patientLabel(a)}</p>
-                      <p className="text-xs text-on-surface-variant truncate flex items-center gap-2">
-                        <span>{a.clinic?.name ?? "Clinic"}</span>
-                        {a.patient?.phone && (
-                          <span className="inline-flex items-center gap-1 text-primary">
-                            <Phone className="w-3 h-3" />
-                            {a.patient.phone}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <WhatsAppReminderButton
-                      patientName={a.patient?.full_name ?? a.patient?.email ?? null}
-                      patientPhone={a.patient?.phone ?? null}
-                      timeSlot={a.time_slot ?? null}
-                      appointmentDate={a.appointment_date}
-                      variant="icon"
-                    />
-                    <AppointmentStatusActions id={a.id} revalidate="/doctor" />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Priority review */}
-        <aside className="col-span-12 lg:col-span-4 rounded-[2rem] bg-gradient-to-br from-surface-container-high to-surface-container-low p-6 ring-1 ring-outline-variant/30">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Priority review</p>
-              <h2 className="font-headline text-lg font-semibold mt-1">Needs attention</h2>
-            </div>
-            {priority.length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
-            )}
-          </div>
-
-          {priority.length === 0 ? (
-            <div className="text-center py-8 text-sm text-on-surface-variant">
-              Nothing urgent right now.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {priority.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-start gap-3 p-4 rounded-2xl bg-surface-container-highest"
-                >
-                  <span
-                    className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                      a.status === "pending" ? "bg-tertiary animate-pulse" : "bg-primary"
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{patientLabel(a)}</p>
-                    <p className="text-xs text-on-surface-variant mt-0.5">
-                      {fmtTime(a.appointment_date)} · {a.status}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-on-surface-variant" />
-                </div>
-              ))}
-            </div>
-          )}
-        </aside>
-      </div>
+        )}
+      </section>
 
       {/* Upcoming (next 14 days, excluding today) */}
       <section className="rounded-[2rem] bg-surface-container-low p-6">

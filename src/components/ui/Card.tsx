@@ -8,17 +8,20 @@ interface CardProps {
   tone?: CardTone;
 }
 
-// No 1px dividers — all separation via tonal surface shifts.
-// default  → surface-container-low
-// raised   → surface-container-highest + deep shadow
-// sunken   → surface-container-lowest (inset panels)
+// Modern SaaS surface system — white cards with soft shadow + hairline border.
+// default  → white card, soft shadow, light border
+// raised   → same white card with a deeper shadow (dialogs, featured panels)
+// sunken   → subtle gray surface for nested panels (inputs, code blocks)
 // glass    → floating / backdrop-blur (for top nav only)
 const toneStyles: Record<CardTone, string> = {
-  default: 'bg-surface-container-low',
+  default:
+    'bg-surface-container-lowest border border-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]',
   raised:
-    'bg-surface-container-highest shadow-[0_24px_48px_rgba(0,0,0,0.35)] ring-1 ring-inset ring-outline-variant/15',
-  sunken: 'bg-surface-container-lowest ring-1 ring-inset ring-outline-variant/10',
-  glass: 'glass ring-1 ring-inset ring-outline-variant/15',
+    'bg-surface-container-lowest border border-outline-variant shadow-[0_12px_24px_rgba(16,24,40,0.08),0_4px_8px_rgba(16,24,40,0.04)]',
+  sunken:
+    'bg-surface-container border border-outline-variant',
+  glass:
+    'glass border border-outline-variant',
 };
 
 export function Card({ className, children, tone = 'default' }: CardProps) {

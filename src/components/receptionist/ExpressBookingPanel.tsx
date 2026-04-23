@@ -150,7 +150,7 @@ export default function ExpressBookingPanel() {
             value={doctorId}
             onChange={(e) => setDoctorId(e.target.value)}
             disabled={loadingDoctors || pending}
-            className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:dark]"
+            className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:light]"
           >
             <option value="">
               {loadingDoctors ? "Loading…" : "Select doctor…"}
@@ -175,7 +175,7 @@ export default function ExpressBookingPanel() {
             min={minDay}
             onChange={(e) => setDay(e.target.value)}
             disabled={pending}
-            className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:dark]"
+            className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:light]"
           />
         </div>
 
@@ -188,7 +188,7 @@ export default function ExpressBookingPanel() {
             value={slot}
             onChange={(e) => setSlot(e.target.value)}
             disabled={!doctorId || pending}
-            className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:dark]"
+            className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:light]"
           >
             <option value="">Select time…</option>
             {TIME_SLOTS.map((s) => (

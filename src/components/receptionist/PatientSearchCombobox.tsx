@@ -138,7 +138,7 @@ export default function PatientSearchCombobox({
       )}
 
       {open && !hit && query.trim().length >= 2 && (
-        <div className="absolute z-30 left-0 right-0 mt-2 rounded-xl bg-surface-container-high border border-outline-variant/20 shadow-[0_24px_48px_rgba(0,0,0,0.4)] overflow-hidden">
+        <div className="absolute z-30 left-0 right-0 mt-2 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-[0_12px_24px_rgba(16,24,40,0.08),0_4px_8px_rgba(16,24,40,0.04)] overflow-hidden">
           {results.length === 0 && !pending ? (
             <div className="px-4 py-3 text-sm text-on-surface-variant">
               No patients match &ldquo;{query}&rdquo;.

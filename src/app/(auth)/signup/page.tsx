@@ -124,7 +124,7 @@ export default function SignupPage() {
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Full name"
             disabled={loading}
-            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/70 border border-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:shadow-[0_0_0_3px_rgba(37,99,235,0.12)] transition disabled:opacity-60"
           />
         </div>
 
@@ -137,7 +137,7 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@clinic.com"
             disabled={loading}
-            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/70 border border-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:shadow-[0_0_0_3px_rgba(37,99,235,0.12)] transition disabled:opacity-60"
           />
         </div>
 
@@ -150,7 +150,7 @@ export default function SignupPage() {
             placeholder="Phone number (optional)"
             disabled={loading}
             autoComplete="tel"
-            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+            className="w-full pl-12 pr-5 py-4 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/70 border border-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:shadow-[0_0_0_3px_rgba(37,99,235,0.12)] transition disabled:opacity-60"
           />
         </div>
 
@@ -164,7 +164,7 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password (min 6 chars)"
             disabled={loading}
-            className="w-full pl-12 pr-12 py-4 rounded-xl bg-surface-container-highest text-on-surface placeholder:text-on-surface-variant/70 border-0 focus:outline-none focus:ring-1 focus:ring-primary focus:shadow-[0_0_0_1px_var(--color-outline-variant),0_0_20px_rgba(78,222,163,0.12)] transition disabled:opacity-60"
+            className="w-full pl-12 pr-12 py-4 rounded-xl bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/70 border border-outline-variant shadow-[0_1px_2px_rgba(16,24,40,0.04)] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:shadow-[0_0_0_3px_rgba(37,99,235,0.12)] transition disabled:opacity-60"
           />
           <button
             type="button"

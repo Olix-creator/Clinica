@@ -102,7 +102,7 @@ export default function DoctorDayColumn({
                 key={a.id}
                 className={[
                   "bg-surface-container-highest rounded-[1.25rem] p-5 relative overflow-hidden group transition",
-                  isCancelled ? "opacity-60 border border-error/20" : "hover:shadow-[0_12px_32px_rgba(0,0,0,0.3)]",
+                  isCancelled ? "opacity-60 border border-error/20" : "border border-outline-variant hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)]",
                 ].join(" ")}
               >
                 <span

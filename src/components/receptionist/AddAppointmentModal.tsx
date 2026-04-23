@@ -21,7 +21,7 @@ function doctorLabel(d: Doctor): string {
 }
 
 const INPUT =
-  "w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:dark]";
+  "w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:light]";
 
 function minLocalDateTime() {
   const d = new Date(Date.now() + 5 * 60 * 1000);

@@ -317,10 +317,8 @@ export type PatientSearchHit = {
  * Search patients by name, email, or phone. Used by the receptionist's Express
  * Booking patient combobox. Returns up to `limit` matches, sorted by name.
  *
- * Note: RLS on `profiles` only lets a user read their own row. The receptionist
- * can nevertheless see other patients because the Supabase policy for their
- * role grants select on all profiles (see migration 0001). If that changes,
- * this helper will need to move behind a SECURITY DEFINER RPC.
+ * RLS: relies on `profiles_select_as_staff` (migration 0009) which lets
+ * receptionists + doctors read any row where `role = 'patient'`.
  */
 export async function searchPatients(
   query: string,

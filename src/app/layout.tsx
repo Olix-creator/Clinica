@@ -12,20 +12,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lumina Clinical — The Clinical Sanctuary",
+  title: "Clinica — Clinic Management, Reimagined",
   description:
-    "Manage your clinic efficiently. Editorial precision, zero friction, built for modern practitioners.",
+    "Modern clinic management built for doctors, receptionists, and patients. Clean, fast, and trustworthy.",
   icons: { icon: "/favicon.ico" },
 };
 
-// Runs before first paint — sets data-theme on <html> from localStorage or OS
-// preference so there's no flash of the wrong theme. Keep this tiny and dependency-free.
+// Runs before first paint — sets data-theme on <html> from localStorage. We
+// default to the new light SaaS theme; users can flip to dark via the toggle.
 const noFlashThemeScript = `(() => {
   try {
     const stored = localStorage.getItem("theme");
-    const theme = stored === "light" || stored === "dark"
-      ? stored
-      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const theme = stored === "dark" ? "dark" : "light";
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
     if (theme === "dark") root.classList.add("dark"); else root.classList.remove("dark");

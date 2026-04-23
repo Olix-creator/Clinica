@@ -11,10 +11,10 @@ type Theme = "light" | "dark";
  * preference), mirrors it into local state, and persists changes.
  */
 function readInitialTheme(): Theme {
-  if (typeof document === "undefined") return "dark";
+  if (typeof document === "undefined") return "light";
   const attr = document.documentElement.getAttribute("data-theme");
   if (attr === "light" || attr === "dark") return attr;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export function ThemeToggle({ variant = "topbar" }: { variant?: "topbar" | "sidebar" }) {
@@ -24,15 +24,6 @@ export function ThemeToggle({ variant = "topbar" }: { variant?: "topbar" | "side
 
   useEffect(() => {
     setTheme(readInitialTheme());
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      // Only follow OS changes when the user hasn't explicitly chosen.
-      if (!localStorage.getItem("theme")) {
-        setTheme(mq.matches ? "dark" : "light");
-      }
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => {

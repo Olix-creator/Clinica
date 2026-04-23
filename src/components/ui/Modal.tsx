@@ -44,14 +44,14 @@ export function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
       <div
-        className="fixed inset-0 bg-[color:color-mix(in_oklab,var(--color-surface-container-lowest)_70%,transparent)] backdrop-blur-sm"
+        className="fixed inset-0 bg-[color:color-mix(in_oklab,#0f172a_35%,transparent)] backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${sizeStyles[size]} max-h-[90vh] overflow-y-auto rounded-xl bg-surface-container-highest shadow-[0_24px_48px_rgba(0,0,0,0.5)] ring-1 ring-inset ring-outline-variant/15 animate-scale-in`}
+        className={`relative w-full ${sizeStyles[size]} max-h-[90vh] overflow-y-auto rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-[0_20px_50px_rgba(16,24,40,0.15),0_8px_20px_rgba(16,24,40,0.08)] animate-scale-in`}
       >
         <div className="flex items-start justify-between gap-6 px-8 pt-8 pb-6">
           <div className="space-y-1">

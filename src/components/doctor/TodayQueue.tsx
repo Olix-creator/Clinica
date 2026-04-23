@@ -58,7 +58,7 @@ export default function TodayQueue({
             className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl"
           />
           <div className="flex items-center gap-3 mb-5 relative z-10">
-            <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(78,222,163,0.5)]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(37,99,235,0.45)]" />
             <span className="text-xs font-bold uppercase tracking-widest text-primary">
               In Session
             </span>

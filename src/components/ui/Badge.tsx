@@ -9,23 +9,27 @@ interface BadgeProps {
   pulse?: boolean;
 }
 
-// Pills: tonal container colors, uppercase tracked labels.
+// Pills: soft tonal fill + strong label color, rounded-full.
 const variantStyles: Record<BadgeVariant, string> = {
-  success: 'bg-secondary-container text-on-secondary-container',
-  warning: 'bg-tertiary-container text-on-tertiary-container',
+  success:
+    'bg-secondary-container text-on-secondary-container ring-1 ring-inset ring-secondary/20',
+  warning:
+    'bg-tertiary-container text-on-tertiary-container ring-1 ring-inset ring-tertiary/25',
   danger:
-    'bg-[color:color-mix(in_oklab,var(--color-error-container)_28%,transparent)] text-error ring-1 ring-inset ring-error/30',
-  info: 'bg-surface-container-highest text-on-surface-variant',
-  neutral: 'bg-surface-container-highest text-on-surface-variant',
+    'bg-error-container text-on-error-container ring-1 ring-inset ring-error/25',
+  info:
+    'bg-primary-fixed text-on-primary-fixed ring-1 ring-inset ring-primary/20',
+  neutral:
+    'bg-surface-container text-on-surface-variant ring-1 ring-inset ring-outline-variant',
   primary:
-    'bg-[color:color-mix(in_oklab,var(--color-primary)_14%,transparent)] text-primary-fixed',
+    'bg-[color:color-mix(in_oklab,var(--color-primary)_14%,transparent)] text-primary ring-1 ring-inset ring-primary/30',
 };
 
 const dotStyles: Record<BadgeVariant, string> = {
-  success: 'bg-on-secondary-container',
-  warning: 'bg-on-tertiary-container',
+  success: 'bg-secondary',
+  warning: 'bg-tertiary',
   danger: 'bg-error',
-  info: 'bg-on-surface-variant',
+  info: 'bg-primary',
   neutral: 'bg-on-surface-variant',
   primary: 'bg-primary',
 };
@@ -34,7 +38,7 @@ export function Badge({ variant, children, className, pulse }: BadgeProps) {
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest font-label',
+        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider font-label',
         variantStyles[variant],
         className,
       )}

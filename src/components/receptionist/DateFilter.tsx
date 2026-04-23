@@ -31,7 +31,7 @@ export function DateFilter() {
           setDate(e.target.value);
           apply(e.target.value);
         }}
-        className="bg-transparent border-0 text-sm text-on-surface focus:outline-none [color-scheme:dark]"
+        className="bg-transparent border-0 text-sm text-on-surface focus:outline-none [color-scheme:light]"
       />
       {params.get("date") && (
         <button

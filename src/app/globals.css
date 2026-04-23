@@ -1,11 +1,25 @@
 @import "tailwindcss";
 
 /* ========================================================================
-   Lumina Clinical — Design System
-   Tailwind v4 `@theme inline` tokens reference runtime CSS variables so
-   the entire palette flips when `[data-theme]` changes. Components keep
-   using `bg-surface`, `text-on-surface`, etc. — no component touches
-   needed for a theme switch.
+   Clinica — Modern SaaS Design System
+   Inspired by Stripe · Linear · Notion.
+
+   Palette
+     Primary ............. #2563EB  (deep blue, trustworthy)
+     Primary hover ....... #1D4ED8
+     Primary soft ........ #DBEAFE
+     Background .......... #F9FAFB  (light gray)
+     Card ................ #FFFFFF  (white, soft shadow)
+     Text primary ........ #111827  (near-black)
+     Text secondary ...... #6B7280  (neutral gray)
+     Border .............. #E5E7EB
+     Success (done) ...... #10B981
+     Warning (pending) ... #F59E0B  with #FEF3C7 soft fill
+     Danger (cancelled) .. #EF4444  with #FEE2E2 soft fill
+
+   Tailwind v4 `@theme inline` tokens reference runtime CSS variables,
+   so components keep using `bg-surface`, `text-on-surface`, etc. —
+   no component files change for palette tweaks.
    ======================================================================== */
 
 @theme inline {
@@ -30,7 +44,7 @@
   --color-on-primary-fixed: var(--on-primary-fixed);
   --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
 
-  /* Secondary */
+  /* Secondary (reserved for success/green accent) */
   --color-secondary: var(--secondary);
   --color-secondary-container: var(--secondary-container);
   --color-secondary-fixed: var(--secondary-fixed);
@@ -40,7 +54,7 @@
   --color-on-secondary-fixed: var(--on-secondary-fixed);
   --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
 
-  /* Tertiary */
+  /* Tertiary (reserved for warning/yellow accent) */
   --color-tertiary: var(--tertiary);
   --color-tertiary-container: var(--tertiary-container);
   --color-tertiary-fixed: var(--tertiary-fixed);
@@ -50,7 +64,7 @@
   --color-on-tertiary-fixed: var(--on-tertiary-fixed);
   --color-on-tertiary-fixed-variant: var(--on-tertiary-fixed-variant);
 
-  /* Error */
+  /* Error (danger/red) */
   --color-error: var(--error);
   --color-error-container: var(--error-container);
   --color-on-error: var(--on-error);
@@ -68,12 +82,12 @@
   --color-inverse-on-surface: var(--inverse-on-surface);
   --color-inverse-primary: var(--inverse-primary);
 
-  /* Radii */
-  --radius: 1rem;
-  --radius-lg: 2rem;
-  --radius-xl: 3rem;
+  /* Radii — xl corners throughout */
+  --radius: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
 
-  /* Typography */
+  /* Typography — Inter / system */
   --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
   --font-headline: var(--font-inter), "Inter", system-ui, sans-serif;
   --font-body: var(--font-inter), "Inter", system-ui, sans-serif;
@@ -81,194 +95,143 @@
 }
 
 /* ------------------------------------------------------------------------
-   LIGHT THEME (default)
-   Warm white surfaces with a whisper of mint. Deep ink text. Emerald CTA
-   kept saturated so buttons read as actionable on both themes.
+   LIGHT THEME (default) — Stripe/Linear/Notion inspired
    ------------------------------------------------------------------------ */
 :root {
-  --surface: #f7faf8;
-  --surface-dim: #eef2ef;
+  /* Surfaces */
+  --surface: #f9fafb;                 /* page background */
+  --surface-dim: #f3f4f6;
   --surface-bright: #ffffff;
-  --surface-container-lowest: #ffffff;
-  --surface-container-low: #f1f5f2;
-  --surface-container: #e9efeb;
-  --surface-container-high: #e0e8e3;
-  --surface-container-highest: #d5dfd9;
-  --surface-variant: #dfe5e0;
+  --surface-container-lowest: #ffffff; /* cards */
+  --surface-container-low: #ffffff;    /* elevated card bg (let shadow carry) */
+  --surface-container: #f3f4f6;        /* subtle tonal surface */
+  --surface-container-high: #e5e7eb;   /* dividers / bordered surfaces */
+  --surface-container-highest: #e5e7eb;
+  --surface-variant: #f3f4f6;
 
-  --primary: #0f9d6c;
-  --primary-container: #10b981;
-  --primary-fixed: #c9f2de;
-  --primary-fixed-dim: #4edea3;
+  /* Primary — deep blue */
+  --primary: #2563eb;
+  --primary-container: #3b82f6;
+  --primary-fixed: #dbeafe;            /* soft primary background */
+  --primary-fixed-dim: #bfdbfe;
   --on-primary: #ffffff;
-  --on-primary-container: #00422b;
-  --on-primary-fixed: #002113;
-  --on-primary-fixed-variant: #005236;
+  --on-primary-container: #1e3a8a;
+  --on-primary-fixed: #1d4ed8;
+  --on-primary-fixed-variant: #1e40af;
 
-  --secondary: #2e6d51;
-  --secondary-container: #c3e7d1;
-  --secondary-fixed: #baeed1;
-  --secondary-fixed-dim: #9ed2b5;
+  /* Secondary — success green (used by the "done" badge) */
+  --secondary: #10b981;
+  --secondary-container: #dcfce7;      /* soft green fill */
+  --secondary-fixed: #bbf7d0;
+  --secondary-fixed-dim: #86efac;
   --on-secondary: #ffffff;
-  --on-secondary-container: #0d3c26;
-  --on-secondary-fixed: #002113;
-  --on-secondary-fixed-variant: #1e4f3a;
+  --on-secondary-container: #065f46;   /* dark green on soft green */
+  --on-secondary-fixed: #064e3b;
+  --on-secondary-fixed-variant: #047857;
 
-  --tertiary: #b3261e;
-  --tertiary-container: #ffdad5;
-  --tertiary-fixed: #ffdad7;
-  --tertiary-fixed-dim: #ffb3af;
+  /* Tertiary — warning yellow (used by the "pending" badge) */
+  --tertiary: #f59e0b;
+  --tertiary-container: #fef3c7;       /* soft yellow fill */
+  --tertiary-fixed: #fde68a;
+  --tertiary-fixed-dim: #fcd34d;
   --on-tertiary: #ffffff;
-  --on-tertiary-container: #410005;
-  --on-tertiary-fixed: #410005;
-  --on-tertiary-fixed-variant: #842225;
+  --on-tertiary-container: #92400e;    /* dark amber on soft yellow */
+  --on-tertiary-fixed: #78350f;
+  --on-tertiary-fixed-variant: #b45309;
 
-  --error: #b3261e;
-  --error-container: #ffdad5;
+  /* Error — danger red (used by the "cancelled" badge) */
+  --error: #ef4444;
+  --error-container: #fee2e2;
   --on-error: #ffffff;
-  --on-error-container: #410002;
+  --on-error-container: #991b1b;
 
-  --on-surface: #0f1a16;
-  --on-surface-variant: #465950;
-  --outline: #76877d;
-  --outline-variant: #c3d1c9;
-  --inverse-surface: #1c1f2a;
-  --inverse-on-surface: #eef2ef;
-  --inverse-primary: #4edea3;
+  /* Neutrals / typography */
+  --on-surface: #111827;               /* near-black text */
+  --on-surface-variant: #6b7280;       /* secondary text */
+  --outline: #9ca3af;
+  --outline-variant: #e5e7eb;          /* card borders */
 
-  --elev-1: 0 1px 2px rgba(15, 26, 22, 0.04), 0 1px 3px rgba(15, 26, 22, 0.06);
-  --elev-2: 0 4px 14px rgba(15, 26, 22, 0.06), 0 2px 4px rgba(15, 26, 22, 0.04);
-  --elev-3: 0 16px 32px rgba(15, 26, 22, 0.08), 0 4px 8px rgba(15, 26, 22, 0.04);
-  --glow-primary: 0 8px 30px rgba(16, 185, 129, 0.28);
-  --scroll-track: #eef2ef;
-  --scroll-thumb: #c3d1c9;
-  --scroll-thumb-hover: #9fb3a8;
+  --inverse-surface: #111827;
+  --inverse-on-surface: #f9fafb;
+  --inverse-primary: #93c5fd;
+
+  /* Elevation — soft Linear-style shadows */
+  --elev-1: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --elev-2: 0 4px 8px rgba(16, 24, 40, 0.04), 0 2px 4px rgba(16, 24, 40, 0.06);
+  --elev-3: 0 12px 24px rgba(16, 24, 40, 0.08), 0 4px 8px rgba(16, 24, 40, 0.04);
+  --glow-primary: 0 8px 24px rgba(37, 99, 235, 0.25);
+
+  --scroll-track: #f3f4f6;
+  --scroll-thumb: #d1d5db;
+  --scroll-thumb-hover: #9ca3af;
 }
 
 /* ------------------------------------------------------------------------
-   DARK THEME — Lumina Clinical's signature editorial blue-black stack.
+   DARK THEME — inverted neutral grays, same blue primary.
+   Only applies when the user explicitly opts in via `[data-theme="dark"]`.
+   The app no longer auto-follows the OS preference; we default to light
+   because the redesigned palette is tuned for the light look.
    ------------------------------------------------------------------------ */
 [data-theme="dark"] {
-  --surface: #0f131d;
-  --surface-dim: #0f131d;
-  --surface-bright: #353944;
-  --surface-container-lowest: #0a0e18;
-  --surface-container-low: #171b26;
-  --surface-container: #1c1f2a;
-  --surface-container-high: #262a35;
-  --surface-container-highest: #313540;
-  --surface-variant: #313540;
+  --surface: #0b0f17;
+  --surface-dim: #0b0f17;
+  --surface-bright: #1f2937;
+  --surface-container-lowest: #0f131d;
+  --surface-container-low: #111827;
+  --surface-container: #1f2937;
+  --surface-container-high: #374151;
+  --surface-container-highest: #4b5563;
+  --surface-variant: #374151;
 
-  --primary: #4edea3;
-  --primary-container: #10b981;
-  --primary-fixed: #6ffbbe;
-  --primary-fixed-dim: #4edea3;
-  --on-primary: #003824;
-  --on-primary-container: #00422b;
-  --on-primary-fixed: #002113;
-  --on-primary-fixed-variant: #005236;
+  --primary: #60a5fa;
+  --primary-container: #3b82f6;
+  --primary-fixed: #1e40af;
+  --primary-fixed-dim: #2563eb;
+  --on-primary: #0b0f17;
+  --on-primary-container: #dbeafe;
+  --on-primary-fixed: #ffffff;
+  --on-primary-fixed-variant: #bfdbfe;
 
-  --secondary: #9ed2b5;
-  --secondary-container: #21523c;
-  --secondary-fixed: #baeed1;
-  --secondary-fixed-dim: #9ed2b5;
-  --on-secondary: #013824;
-  --on-secondary-container: #91c4a8;
-  --on-secondary-fixed: #002113;
-  --on-secondary-fixed-variant: #1e4f3a;
+  --secondary: #34d399;
+  --secondary-container: #064e3b;
+  --secondary-fixed: #065f46;
+  --secondary-fixed-dim: #10b981;
+  --on-secondary: #022c22;
+  --on-secondary-container: #bbf7d0;
+  --on-secondary-fixed: #ecfdf5;
+  --on-secondary-fixed-variant: #86efac;
 
-  --tertiary: #ffb3af;
-  --tertiary-container: #fc7c78;
-  --tertiary-fixed: #ffdad7;
-  --tertiary-fixed-dim: #ffb3af;
-  --on-tertiary: #650911;
-  --on-tertiary-container: #711419;
-  --on-tertiary-fixed: #410005;
-  --on-tertiary-fixed-variant: #842225;
+  --tertiary: #fbbf24;
+  --tertiary-container: #78350f;
+  --tertiary-fixed: #92400e;
+  --tertiary-fixed-dim: #f59e0b;
+  --on-tertiary: #422006;
+  --on-tertiary-container: #fde68a;
+  --on-tertiary-fixed: #fffbeb;
+  --on-tertiary-fixed-variant: #fcd34d;
 
-  --error: #ffb4ab;
-  --error-container: #93000a;
-  --on-error: #690005;
-  --on-error-container: #ffdad6;
+  --error: #f87171;
+  --error-container: #7f1d1d;
+  --on-error: #1f0404;
+  --on-error-container: #fecaca;
 
-  --on-surface: #dfe2f1;
-  --on-surface-variant: #bbcabf;
-  --outline: #86948a;
-  --outline-variant: #3c4a42;
-  --inverse-surface: #dfe2f1;
-  --inverse-on-surface: #2c303b;
-  --inverse-primary: #006c49;
+  --on-surface: #f9fafb;
+  --on-surface-variant: #9ca3af;
+  --outline: #6b7280;
+  --outline-variant: #374151;
+
+  --inverse-surface: #f9fafb;
+  --inverse-on-surface: #111827;
+  --inverse-primary: #1d4ed8;
 
   --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
   --elev-2: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
   --elev-3: 0 24px 48px rgba(0, 0, 0, 0.55), 0 8px 12px rgba(0, 0, 0, 0.35);
-  --glow-primary: 0 8px 30px rgba(78, 222, 163, 0.2);
-  --scroll-track: #0f131d;
-  --scroll-thumb: #313540;
-  --scroll-thumb-hover: #3c4a42;
-}
+  --glow-primary: 0 8px 24px rgba(96, 165, 250, 0.25);
 
-/* Follow the OS preference when no explicit choice is stored yet. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --surface: #0f131d;
-    --surface-dim: #0f131d;
-    --surface-bright: #353944;
-    --surface-container-lowest: #0a0e18;
-    --surface-container-low: #171b26;
-    --surface-container: #1c1f2a;
-    --surface-container-high: #262a35;
-    --surface-container-highest: #313540;
-    --surface-variant: #313540;
-
-    --primary: #4edea3;
-    --primary-container: #10b981;
-    --primary-fixed: #6ffbbe;
-    --primary-fixed-dim: #4edea3;
-    --on-primary: #003824;
-    --on-primary-container: #00422b;
-    --on-primary-fixed: #002113;
-    --on-primary-fixed-variant: #005236;
-
-    --secondary: #9ed2b5;
-    --secondary-container: #21523c;
-    --secondary-fixed: #baeed1;
-    --secondary-fixed-dim: #9ed2b5;
-    --on-secondary: #013824;
-    --on-secondary-container: #91c4a8;
-    --on-secondary-fixed: #002113;
-    --on-secondary-fixed-variant: #1e4f3a;
-
-    --tertiary: #ffb3af;
-    --tertiary-container: #fc7c78;
-    --tertiary-fixed: #ffdad7;
-    --tertiary-fixed-dim: #ffb3af;
-    --on-tertiary: #650911;
-    --on-tertiary-container: #711419;
-    --on-tertiary-fixed: #410005;
-    --on-tertiary-fixed-variant: #842225;
-
-    --error: #ffb4ab;
-    --error-container: #93000a;
-    --on-error: #690005;
-    --on-error-container: #ffdad6;
-
-    --on-surface: #dfe2f1;
-    --on-surface-variant: #bbcabf;
-    --outline: #86948a;
-    --outline-variant: #3c4a42;
-    --inverse-surface: #dfe2f1;
-    --inverse-on-surface: #2c303b;
-    --inverse-primary: #006c49;
-
-    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
-    --elev-2: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
-    --elev-3: 0 24px 48px rgba(0, 0, 0, 0.55), 0 8px 12px rgba(0, 0, 0, 0.35);
-    --glow-primary: 0 8px 30px rgba(78, 222, 163, 0.2);
-    --scroll-track: #0f131d;
-    --scroll-thumb: #313540;
-    --scroll-thumb-hover: #3c4a42;
-  }
+  --scroll-track: #0b0f17;
+  --scroll-thumb: #374151;
+  --scroll-thumb-hover: #4b5563;
 }
 
 html,
@@ -281,26 +244,21 @@ body {
   transition: background-color 200ms ease, color 200ms ease;
 }
 
-/* Native form controls should follow the active theme. */
+/* Native form controls match the active theme. */
 :root {
   color-scheme: light;
 }
 [data-theme="dark"] {
   color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-  }
-}
 
 /* Selection */
 ::selection {
-  background-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+  background-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
   color: var(--color-on-surface);
 }
 
-/* Scrollbar (webkit) — uses the theme's tokens */
+/* Scrollbar (webkit) */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -337,8 +295,8 @@ body {
   100% { background-position:  200% 0; }
 }
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
-  50%      { box-shadow: 0 0 40px rgba(16, 185, 129, 0.35); }
+  0%, 100% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.15); }
+  50%      { box-shadow: 0 0 40px rgba(37, 99, 235, 0.30); }
 }
 @keyframes checkmark {
   0%   { stroke-dashoffset: 48; opacity: 0; }
@@ -357,7 +315,7 @@ body {
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
 
-/* Skeleton shimmer — adapts to theme via tokens */
+/* Skeleton shimmer */
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -372,12 +330,12 @@ body {
 
 /* Glass (floating nav / header) */
 .glass {
-  background: color-mix(in oklab, var(--color-surface-container-high) 80%, transparent);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background: color-mix(in oklab, var(--color-surface-bright) 85%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
 
-/* Emerald CTA glow — strength adapts to theme */
+/* Soft blue CTA glow */
 .shadow-emerald {
   box-shadow: var(--glow-primary);
 }
@@ -387,6 +345,18 @@ body {
 .shadow-elev-1 { box-shadow: var(--elev-1); }
 .shadow-elev-2 { box-shadow: var(--elev-2); }
 
-/* Hide scrollbar utility (used in receptionist filter chips) */
+/* Reusable "card" class — soft shadow + rounded-xl + light border */
+.card-surface {
+  background-color: var(--color-surface-container-lowest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.card-surface:hover {
+  box-shadow: var(--elev-2);
+}
+
+/* Hide scrollbar utility */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { scrollbar-width: none; }

@@ -168,7 +168,7 @@ export default function RescheduleModal({
                 value={doctorId}
                 onChange={(e) => setDoctorId(e.target.value)}
                 disabled={loadingDoctors || pending}
-                className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:dark]"
+                className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition disabled:opacity-60 [color-scheme:light]"
               >
                 {doctors.length === 0 && <option value={doctorId}>Current doctor</option>}
                 {doctors.map((d) => (
@@ -191,7 +191,7 @@ export default function RescheduleModal({
               min={todayISO}
               onChange={(e) => setDay(e.target.value)}
               disabled={pending}
-              className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:dark]"
+              className="w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary transition [color-scheme:light]"
             />
           </div>
 

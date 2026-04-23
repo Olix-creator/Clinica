@@ -32,17 +32,23 @@ type ButtonProps = ButtonAsButton | ButtonAsLink;
 // Outline: transparent w/ primary hairline.
 // Ghost: surface-container-low on hover only.
 // Danger: tertiary container gradient.
+// Clinica — button variants (modern SaaS, blue primary).
+// Primary: solid blue, white ink, soft blue glow, active scale-98.
+// Secondary: white on soft gray with border.
+// Outline: transparent w/ primary hairline.
+// Ghost: transparent on hover only.
+// Danger: solid red.
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-[0_8px_24px_rgba(78,222,163,0.18)] hover:shadow-[0_12px_32px_rgba(78,222,163,0.28)] active:scale-[0.98]',
+    'bg-primary text-on-primary font-semibold shadow-[0_4px_12px_rgba(37,99,235,0.22)] hover:bg-primary-container hover:shadow-[0_8px_20px_rgba(37,99,235,0.30)] active:scale-[0.98]',
   secondary:
-    'bg-surface-container-highest text-primary font-medium ring-1 ring-inset ring-primary/20 hover:bg-surface-container-high active:scale-[0.98]',
+    'bg-surface-container-lowest text-on-surface font-medium ring-1 ring-inset ring-outline-variant hover:bg-surface-container active:scale-[0.98] shadow-[0_1px_2px_rgba(16,24,40,0.05)]',
   outline:
-    'bg-transparent text-primary font-medium ring-1 ring-inset ring-primary/30 hover:bg-primary/5 active:scale-[0.98]',
+    'bg-transparent text-primary font-medium ring-1 ring-inset ring-primary/40 hover:bg-primary/5 active:scale-[0.98]',
   ghost:
-    'bg-transparent text-on-surface-variant font-medium hover:bg-surface-container-low hover:text-on-surface',
+    'bg-transparent text-on-surface-variant font-medium hover:bg-surface-container hover:text-on-surface',
   danger:
-    'bg-gradient-to-br from-tertiary-container to-error-container text-on-error-container font-semibold hover:opacity-95 active:scale-[0.98]',
+    'bg-error text-on-error font-semibold hover:brightness-110 active:scale-[0.98] shadow-[0_4px_12px_rgba(239,68,68,0.22)]',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {

@@ -1,4 +1,7 @@
+import { Clock, Repeat, AlertCircle } from "lucide-react";
 import type { AppointmentWithRelations } from "@/lib/data/appointments";
+import type { PatientStats } from "@/lib/data/patient-stats-utils";
+import { isInactive } from "@/lib/data/patient-stats-utils";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
 import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
@@ -34,14 +37,33 @@ function dayOf(iso: string): string {
   return new Date(iso).toISOString().slice(0, 10);
 }
 
+/** "Mar 12" style short date for patient-history badges. */
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function DoctorAppointmentRow({
   appointment,
+  patientStats,
 }: {
   appointment: AppointmentWithRelations;
+  /**
+   * Optional aggregated history for this patient. When provided we render
+   * "Last visit" + "Visits" badges next to the patient's name; when the
+   * patient is new (no prior done visits) we show a small "First visit"
+   * pill instead.
+   */
+  patientStats?: PatientStats;
 }) {
   const a = appointment;
   const isCancelled = a.status === "cancelled";
   const isDone = a.status === "done";
+  const inactive = isInactive(patientStats?.last_visit);
+  const hasPriorVisits = (patientStats?.total_visits ?? 0) > 0;
 
   return (
     <div
@@ -104,6 +126,49 @@ export default function DoctorAppointmentRow({
             )}
             {a.patient?.phone && (
               <p className="text-xs text-on-surface-variant truncate">{a.patient.phone}</p>
+            )}
+            {/* Visit history — "Last visit" + "Visits" pills. Warning tint
+                when the gap is over ~6 months so the doctor can spot
+                returning patients at a glance. */}
+            {patientStats && (
+              <div className="mt-1.5 flex items-center flex-wrap gap-x-2 gap-y-1">
+                {hasPriorVisits ? (
+                  <>
+                    <span
+                      className={[
+                        "inline-flex items-center gap-1 text-[11px] font-medium rounded-full px-2 py-0.5",
+                        inactive
+                          ? "bg-tertiary-container/50 text-on-tertiary-container ring-1 ring-tertiary/40"
+                          : "bg-surface-container-highest text-on-surface-variant",
+                      ].join(" ")}
+                      title={
+                        inactive
+                          ? "It's been over 6 months since this patient's last visit."
+                          : "Most recent completed visit."
+                      }
+                    >
+                      {inactive ? (
+                        <AlertCircle className="w-3 h-3" />
+                      ) : (
+                        <Clock className="w-3 h-3" />
+                      )}
+                      Last visit:{" "}
+                      {patientStats.last_visit
+                        ? shortDate(patientStats.last_visit)
+                        : "—"}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-on-surface-variant bg-surface-container-highest rounded-full px-2 py-0.5">
+                      <Repeat className="w-3 h-3" />
+                      {patientStats.total_visits}{" "}
+                      {patientStats.total_visits === 1 ? "visit" : "visits"}
+                    </span>
+                  </>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 ring-1 ring-primary/20 rounded-full px-2 py-0.5">
+                    First visit
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

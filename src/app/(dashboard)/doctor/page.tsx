@@ -22,6 +22,7 @@ import TodayQueue from "@/components/doctor/TodayQueue";
 import DoctorAppointmentRow from "@/components/doctor/DoctorAppointmentRow";
 import { AvailabilitySetup } from "@/components/doctor/AvailabilitySetup";
 import { getAvailability, getBreaks } from "@/lib/data/availability";
+import { getDoctorPatientStatsMap } from "@/lib/data/patient-stats";
 
 function patientLabel(a: AppointmentWithRelations): string {
   return a.patient?.full_name ?? a.patient?.email ?? "Patient";
@@ -136,6 +137,19 @@ export default async function DoctorPage() {
   const pending = todayAppointments.filter((a) => a.status === "pending");
   const doneCount = todayAppointments.filter((a) => a.status === "done").length;
 
+  // Patient stats (last visit + total visits) for every patient we'll show
+  // today or in the upcoming list. One DB round-trip, O(1) lookups below.
+  const patientIdsOnScreen = Array.from(
+    new Set(
+      [...todayAppointments, ...upcoming]
+        .map((a) => a.patient_id)
+        .filter(Boolean),
+    ),
+  ) as string[];
+  const patientStatsMap = doctor
+    ? await getDoctorPatientStatsMap(doctor.id, patientIdsOnScreen)
+    : new Map();
+
   const doctorDisplay = doctorLabel(profile.full_name, doctor?.name ?? null);
   const channelKey = doctor?.id ?? primaryClinicId ?? profile.id;
   const isOwner = ownedClinics.length > 0;
@@ -235,7 +249,13 @@ export default async function DoctorPage() {
         ) : (
           <div className="space-y-3">
             {todayAppointments.map((a) => (
-              <DoctorAppointmentRow key={a.id} appointment={a} />
+              <DoctorAppointmentRow
+                key={a.id}
+                appointment={a}
+                patientStats={
+                  a.patient_id ? patientStatsMap.get(a.patient_id) : undefined
+                }
+              />
             ))}
           </div>
         )}

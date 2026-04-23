@@ -6,10 +6,11 @@ import {
   LayoutDashboard,
   CalendarCheck,
   CalendarPlus,
-  User,
+  Users,
   BarChart3,
   Stethoscope,
   ClipboardList,
+  Settings,
 } from "lucide-react";
 
 type Role = "patient" | "doctor" | "receptionist";
@@ -20,19 +21,19 @@ const NAV: Record<Role, Item[]> = {
     { href: "/patient", label: "Home", icon: LayoutDashboard },
     { href: "/patient#upcoming", label: "Visits", icon: CalendarCheck },
     { href: "/booking", label: "Book", icon: CalendarPlus },
-    { href: "/profile", label: "Profile", icon: User },
+    { href: "/settings", label: "Settings", icon: Settings },
   ],
   doctor: [
     { href: "/doctor", label: "Today", icon: Stethoscope },
-    { href: "/analytics", label: "Insights", icon: BarChart3 },
+    { href: "/patients", label: "Patients", icon: Users },
     { href: "/booking", label: "Book", icon: CalendarPlus },
-    { href: "/profile", label: "Profile", icon: User },
+    { href: "/settings", label: "Settings", icon: Settings },
   ],
   receptionist: [
     { href: "/receptionist", label: "Schedule", icon: ClipboardList },
     { href: "/analytics", label: "Insights", icon: BarChart3 },
     { href: "/booking", label: "Book", icon: CalendarPlus },
-    { href: "/profile", label: "Profile", icon: User },
+    { href: "/settings", label: "Settings", icon: Settings },
   ],
 };
 

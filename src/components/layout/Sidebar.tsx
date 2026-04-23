@@ -13,6 +13,7 @@ import {
   Stethoscope,
   User,
   BarChart3,
+  Settings,
 } from "lucide-react";
 import SignOutButton from "./SignOutButton";
 
@@ -24,15 +25,19 @@ const NAV: Record<Role, NavItem[]> = {
   patient: [
     { href: "/patient", label: "Overview", icon: LayoutDashboard },
     { href: "/booking", label: "Book visit", icon: CalendarPlus },
+    { href: "/settings", label: "Settings", icon: Settings },
   ],
   doctor: [
     { href: "/doctor", label: "Today", icon: Stethoscope },
+    { href: "/patients", label: "Patients", icon: Users },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/settings", label: "Settings", icon: Settings },
   ],
   receptionist: [
     { href: "/receptionist", label: "Schedule", icon: ClipboardList },
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/booking", label: "New booking", icon: CalendarPlus },
+    { href: "/settings", label: "Settings", icon: Settings },
   ],
 };
 

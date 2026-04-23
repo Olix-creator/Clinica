@@ -15,11 +15,13 @@ import {
   Sun,
   CloudSun,
   Moon,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type {
   BookAppointmentResult,
   LoadSlotsResult,
+  SuggestResult,
 } from "@/app/(dashboard)/booking/actions";
 
 type Clinic = { id: string; name: string };
@@ -103,11 +105,13 @@ export function BookingForm({
   clinics,
   action,
   loadSlots,
+  findSuggestion,
   initialPhone = "",
 }: {
   clinics: Clinic[];
   action: (formData: FormData) => Promise<BookAppointmentResult>;
   loadSlots: (doctorId: string, dayISO: string) => Promise<LoadSlotsResult>;
+  findSuggestion: (doctorId: string, fromDayISO: string) => Promise<SuggestResult>;
   initialPhone?: string;
 }) {
   const router = useRouter();
@@ -122,6 +126,9 @@ export function BookingForm({
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [unavailableSlots, setUnavailableSlots] = useState<string[]>([]);
+  const [suggestion, setSuggestion] = useState<{ dayISO: string; slot: string } | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,10 +165,11 @@ export function BookingForm({
     };
   }, [clinicId]);
 
-  // Load booked slots when (doctor, day) changes.
+  // Load booked + unavailable slots when (doctor, day) changes.
   useEffect(() => {
     if (!doctorId || !dayISO) {
       setBookedSlots([]);
+      setUnavailableSlots([]);
       return;
     }
     let cancelled = false;
@@ -169,9 +177,12 @@ export function BookingForm({
     setTimeSlot(""); // reset any prior selection when scope changes
     loadSlots(doctorId, dayISO).then((res) => {
       if (cancelled) return;
-      if (res.ok) setBookedSlots(res.booked);
-      else {
+      if (res.ok) {
+        setBookedSlots(res.booked);
+        setUnavailableSlots(res.unavailable);
+      } else {
         setBookedSlots([]);
+        setUnavailableSlots([]);
         toast.error(res.error);
       }
       setLoadingSlots(false);
@@ -180,6 +191,26 @@ export function BookingForm({
       cancelled = true;
     };
   }, [doctorId, dayISO, loadSlots]);
+
+  // Any time the doctor changes we recompute the "next available" suggestion
+  // starting from today — this is what powers the Smart Rescheduling banner.
+  useEffect(() => {
+    if (!doctorId) {
+      setSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSuggestion(true);
+    const todayISO = new Date().toISOString().slice(0, 10);
+    findSuggestion(doctorId, todayISO).then((res) => {
+      if (cancelled) return;
+      setSuggestion(res.ok ? res.suggestion : null);
+      setLoadingSuggestion(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId, findSuggestion]);
 
   const selectedClinic = useMemo(
     () => clinics.find((c) => c.id === clinicId),
@@ -450,6 +481,7 @@ export function BookingForm({
                   slots={MORNING as unknown as string[]}
                   dayISO={dayISO}
                   bookedSlots={bookedSlots}
+                  unavailableSlots={unavailableSlots}
                   value={timeSlot}
                   onChange={setTimeSlot}
                 />
@@ -459,10 +491,50 @@ export function BookingForm({
                   slots={AFTERNOON as unknown as string[]}
                   dayISO={dayISO}
                   bookedSlots={bookedSlots}
+                  unavailableSlots={unavailableSlots}
                   value={timeSlot}
                   onChange={setTimeSlot}
                 />
               </div>
+            )}
+
+            {/* Smart suggestion — shown when the user hasn't picked a slot and
+                we know of a next-available alternative. */}
+            {!timeSlot && !loadingSlots && suggestion && (
+              <div className="mt-5 rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-on-surface">
+                      Next available:{" "}
+                      {new Date(suggestion.dayISO + "T00:00:00").toLocaleDateString(
+                        undefined,
+                        { weekday: "short", month: "short", day: "numeric" },
+                      )}{" "}
+                      at {suggestion.slot}
+                    </p>
+                    <p className="text-xs text-on-surface-variant">
+                      One tap to jump to the earliest free slot.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDayISO(suggestion.dayISO);
+                    setTimeSlot(suggestion.slot);
+                  }}
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary-container transition"
+                >
+                  Use this
+                </button>
+              </div>
+            )}
+
+            {loadingSuggestion && !timeSlot && !loadingSlots && (
+              <p className="mt-5 text-xs text-on-surface-variant inline-flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" /> Finding the earliest available slot…
+              </p>
             )}
 
             {timeSlot && (
@@ -598,6 +670,7 @@ function SlotSection({
   slots,
   dayISO,
   bookedSlots,
+  unavailableSlots,
   value,
   onChange,
 }: {
@@ -606,6 +679,7 @@ function SlotSection({
   slots: string[];
   dayISO: string;
   bookedSlots: string[];
+  unavailableSlots: string[];
   value: string;
   onChange: (v: string) => void;
 }) {
@@ -618,10 +692,13 @@ function SlotSection({
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
         {slots.map((slot) => {
           const isBooked = bookedSlots.includes(slot);
+          const isUnavailable = unavailableSlots.includes(slot);
           const isPast = isSlotPast(dayISO, slot);
-          const disabled = isBooked || isPast;
+          const disabled = isUnavailable || isBooked || isPast;
           const active = value === slot;
           if (disabled) {
+            // Label priority: Past > Booked > Unavailable (outside hours / on break)
+            const label = isPast ? "Past" : isBooked ? "Booked" : "Unavailable";
             return (
               <button
                 key={slot}
@@ -631,9 +708,7 @@ function SlotSection({
               >
                 <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(120,120,120,0.08)_10px,rgba(120,120,120,0.08)_20px)]" />
                 <span className="font-medium text-sm relative z-10 line-through">{slot}</span>
-                <span className="text-[10px] mt-0.5 relative z-10">
-                  {isBooked ? "Booked" : "Past"}
-                </span>
+                <span className="text-[10px] mt-0.5 relative z-10">{label}</span>
               </button>
             );
           }

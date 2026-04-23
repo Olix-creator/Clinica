@@ -20,6 +20,8 @@ import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel
 import { AnalyticsStrip } from "@/components/doctor/AnalyticsStrip";
 import TodayQueue from "@/components/doctor/TodayQueue";
 import DoctorAppointmentRow from "@/components/doctor/DoctorAppointmentRow";
+import { AvailabilitySetup } from "@/components/doctor/AvailabilitySetup";
+import { getAvailability, getBreaks } from "@/lib/data/availability";
 
 function patientLabel(a: AppointmentWithRelations): string {
   return a.patient?.full_name ?? a.patient?.email ?? "Patient";
@@ -71,6 +73,17 @@ export default async function DoctorPage() {
   const analytics = primaryClinicId
     ? await analyticsService.forClinic(primaryClinicId)
     : null;
+
+  // Availability + upcoming breaks (only meaningful if the caller has a
+  // `doctors` row, which is what availability rows FK to).
+  const todayDateISO = new Date().toISOString().slice(0, 10);
+  const [availability, breaks] = doctor
+    ? await Promise.all([
+        getAvailability(doctor.id),
+        getBreaks(doctor.id, todayDateISO),
+      ])
+    : [[], []];
+  const needsAvailabilitySetup = !!doctor && availability.length === 0;
 
   if (!doctor && ownedClinics.length === 0) {
     return (
@@ -149,6 +162,29 @@ export default async function DoctorPage() {
       {/* Clinic management (owners) */}
       {isOwner && <ClinicManagementPanel clinics={ownedClinics} />}
 
+      {/* Availability setup — shown prominently if not configured, otherwise
+          collapsed into the "Your working hours" section at the bottom. */}
+      {needsAvailabilitySetup && doctor && (
+        <div className="rounded-[2rem] bg-tertiary-container/40 border border-tertiary/30 p-5 sm:p-6">
+          <div className="flex items-start gap-3 mb-4">
+            <span className="w-10 h-10 rounded-xl bg-tertiary-container flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-on-tertiary-container" />
+            </span>
+            <div>
+              <h3 className="font-semibold text-on-surface">Finish setting up your schedule</h3>
+              <p className="text-sm text-on-surface-variant mt-0.5">
+                Patients cannot book you until you set your working hours.
+              </p>
+            </div>
+          </div>
+          <AvailabilitySetup
+            doctorId={doctor.id}
+            initialAvailability={availability}
+            initialBreaks={breaks}
+          />
+        </div>
+      )}
+
       {/* Analytics strip */}
       {analytics && primaryClinicId && (
         <AnalyticsStrip clinicName={primaryClinicName} analytics={analytics} />
@@ -204,6 +240,16 @@ export default async function DoctorPage() {
           </div>
         )}
       </section>
+
+      {/* Availability + breaks — always visible for doctors who have a clinic,
+          so they can update hours without digging through settings. */}
+      {doctor && !needsAvailabilitySetup && (
+        <AvailabilitySetup
+          doctorId={doctor.id}
+          initialAvailability={availability}
+          initialBreaks={breaks}
+        />
+      )}
 
       {/* Upcoming (next 14 days, excluding today) */}
       <section className="rounded-[2rem] bg-surface-container-low p-6">

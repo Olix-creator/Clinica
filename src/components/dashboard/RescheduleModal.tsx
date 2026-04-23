@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarClock, Loader2 } from "lucide-react";
+import { CalendarClock, Loader2, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { TIME_SLOTS } from "@/lib/appointments/slots";
+import { findNextAvailable } from "@/app/(dashboard)/booking/actions";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -43,9 +44,17 @@ export default function RescheduleModal({
   const [slot, setSlot] = useState<string>(currentSlot ?? "");
   const [doctors, setDoctors] = useState<DoctorLite[]>([]);
   const [booked, setBooked] = useState<Set<string>>(new Set());
+  const [unavailable, setUnavailable] = useState<Set<string>>(new Set());
+  const [suggestion, setSuggestion] = useState<{ dayISO: string; slot: string } | null>(null);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const todayISO = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  }, []);
 
   // Load doctors for the clinic when we open (only if the UI allows switching).
   useEffect(() => {
@@ -68,28 +77,49 @@ export default function RescheduleModal({
     };
   }, [open, clinicId, allowDoctorChange]);
 
-  // Refresh booked slots whenever (doctor, day) changes.
+  // Refresh booked + unavailable slots whenever (doctor, day) changes.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoadingSlots(true);
     const supabase = createClient();
-    supabase
-      .rpc("get_booked_slots", { p_doctor_id: doctorId, p_day: day })
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) {
-          // Ignore — pre-flight will catch collisions server-side.
-          setBooked(new Set());
-        } else {
-          setBooked(new Set(((data ?? []) as string[]).filter(Boolean)));
-        }
-        setLoadingSlots(false);
-      });
+    Promise.all([
+      supabase.rpc("get_booked_slots", { p_doctor_id: doctorId, p_day: day }),
+      supabase.rpc("get_unavailable_slots", { p_doctor_id: doctorId, p_day: day }),
+    ]).then(([bookedRes, unavailRes]) => {
+      if (cancelled) return;
+      setBooked(
+        bookedRes.error
+          ? new Set()
+          : new Set(((bookedRes.data ?? []) as string[]).filter(Boolean)),
+      );
+      // Fall back to just `booked` if the new RPC isn't deployed yet.
+      setUnavailable(
+        unavailRes.error
+          ? new Set(((bookedRes.data ?? []) as string[]).filter(Boolean))
+          : new Set(((unavailRes.data ?? []) as string[]).filter(Boolean)),
+      );
+      setLoadingSlots(false);
+    });
     return () => {
       cancelled = true;
     };
   }, [open, doctorId, day]);
+
+  // Smart suggestion: recompute when the modal opens or doctor changes.
+  useEffect(() => {
+    if (!open || !doctorId) return;
+    let cancelled = false;
+    findNextAvailable(doctorId, todayISO).then((res) => {
+      if (cancelled) return;
+      setSuggestion(res.ok ? res.suggestion : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally exclude todayISO — it's stable within a modal session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, doctorId]);
 
   // When the user opens, reset the form to the current values.
   useEffect(() => {
@@ -99,12 +129,6 @@ export default function RescheduleModal({
       setSlot(currentSlot ?? "");
     }
   }, [open, currentDoctorId, currentDay, currentSlot]);
-
-  const todayISO = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 10);
-  }, []);
 
   function doctorLabel(d: DoctorLite): string {
     return d.name ?? d.profile?.full_name ?? d.profile?.email ?? "Doctor";
@@ -201,21 +225,24 @@ export default function RescheduleModal({
             </label>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
               {TIME_SLOTS.map((s) => {
-                const isBooked =
-                  booked.has(s) &&
-                  !(s === currentSlot && doctorId === currentDoctorId && day === currentDay);
+                // Allow staying on the current (doctor, day, slot) combo.
+                const keepingCurrent =
+                  s === currentSlot && doctorId === currentDoctorId && day === currentDay;
+                const isBooked = booked.has(s) && !keepingCurrent;
+                const isUnavailable = unavailable.has(s) && !keepingCurrent;
+                const disabled = isBooked || isUnavailable;
                 const selected = s === slot;
                 return (
                   <button
                     key={s}
                     type="button"
-                    onClick={() => !isBooked && setSlot(s)}
-                    disabled={isBooked || pending}
+                    onClick={() => !disabled && setSlot(s)}
+                    disabled={disabled || pending}
                     className={[
                       "py-2 rounded-xl text-sm font-medium transition border",
                       selected
                         ? "bg-primary text-on-primary-fixed border-primary shadow-emerald"
-                        : isBooked
+                        : disabled
                           ? "bg-surface-container text-on-surface-variant/60 border-outline-variant/10 line-through cursor-not-allowed"
                           : "bg-surface-container-highest text-on-surface hover:bg-surface-bright border-outline-variant/15",
                     ].join(" ")}
@@ -225,6 +252,41 @@ export default function RescheduleModal({
                 );
               })}
             </div>
+
+            {/* Smart suggestion banner — shown when the modal's current
+                selection is blocked and we found a later opening. */}
+            {suggestion &&
+              !(
+                suggestion.dayISO === day &&
+                suggestion.slot === slot &&
+                doctorId === currentDoctorId
+              ) && (
+                <div className="mt-3 rounded-xl bg-primary/5 border border-primary/20 px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Sparkles className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-on-surface">
+                        Next available:{" "}
+                        {new Date(suggestion.dayISO + "T00:00:00").toLocaleDateString(
+                          undefined,
+                          { weekday: "short", month: "short", day: "numeric" },
+                        )}{" "}
+                        at {suggestion.slot}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDay(suggestion.dayISO);
+                      setSlot(suggestion.slot);
+                    }}
+                    className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-on-primary text-[11px] font-semibold hover:bg-primary-container transition"
+                  >
+                    Use this
+                  </button>
+                </div>
+              )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

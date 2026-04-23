@@ -5,6 +5,7 @@ import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButto
 import CallButton from "@/components/dashboard/CallButton";
 import CancelAppointmentButton from "@/components/dashboard/CancelAppointmentButton";
 import RescheduleModal from "@/components/dashboard/RescheduleModal";
+import PatientHistoryModal from "@/components/doctor/PatientHistoryModal";
 import { cancelAppointmentAction, rescheduleAction } from "@/app/(dashboard)/doctor/actions";
 
 function patientLabel(a: AppointmentWithRelations): string {
@@ -74,13 +75,33 @@ export default function DoctorAppointmentRow({
             </span>
           </div>
           <div className="min-w-0">
-            <h4
-              className={`text-sm sm:text-base font-semibold truncate ${
-                isCancelled ? "line-through text-on-surface-variant" : "text-on-surface"
-              }`}
-            >
-              {patientLabel(a)}
-            </h4>
+            {a.patient?.id ? (
+              <PatientHistoryModal
+                patientId={a.patient.id}
+                patientName={patientLabel(a)}
+                currentAppointmentId={a.id}
+                trigger={
+                  <h4
+                    className={`text-sm sm:text-base font-semibold truncate hover:text-primary hover:underline underline-offset-2 decoration-primary/50 transition-colors ${
+                      isCancelled
+                        ? "line-through text-on-surface-variant"
+                        : "text-on-surface"
+                    }`}
+                    title="View patient history"
+                  >
+                    {patientLabel(a)}
+                  </h4>
+                }
+              />
+            ) : (
+              <h4
+                className={`text-sm sm:text-base font-semibold truncate ${
+                  isCancelled ? "line-through text-on-surface-variant" : "text-on-surface"
+                }`}
+              >
+                {patientLabel(a)}
+              </h4>
+            )}
             {a.patient?.phone && (
               <p className="text-xs text-on-surface-variant truncate">{a.patient.phone}</p>
             )}

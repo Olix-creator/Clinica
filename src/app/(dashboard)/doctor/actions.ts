@@ -5,6 +5,7 @@ import {
   rescheduleAppointment,
   updateAppointmentStatus,
   type AppointmentStatus,
+  type AppointmentWithRelations,
 } from "@/lib/data/appointments";
 import { createClinic } from "@/lib/data/clinics";
 import {
@@ -12,8 +13,25 @@ import {
   removeClinicMember,
   type ClinicMemberRole,
 } from "@/lib/data/clinicMembers";
+import { getPatientHistory } from "@/lib/data/patient-history";
 
 type Result = { ok: true } | { ok: false; error: string };
+
+export type PatientHistoryResult =
+  | { ok: true; history: AppointmentWithRelations[] }
+  | { ok: false; error: string };
+
+export async function loadPatientHistoryAction(
+  patientId: string,
+): Promise<PatientHistoryResult> {
+  if (!patientId) return { ok: false, error: "Missing patient id" };
+  try {
+    const history = await getPatientHistory(patientId);
+    return { ok: true, history };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
 
 const ALLOWED: AppointmentStatus[] = ["pending", "confirmed", "done", "cancelled"];
 

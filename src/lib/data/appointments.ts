@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import { TIME_SLOTS, isValidTimeSlot } from "@/lib/appointments/slots";
+import { getUnavailableSlots } from "@/lib/data/availability";
 
 export { TIME_SLOTS, isValidTimeSlot };
 
@@ -149,13 +150,22 @@ export async function createAppointment({
   }
   if (!doctorRow) return { data: null, error: "Selected doctor does not belong to this clinic" };
 
-  // Belt-and-braces pre-check for double-booking so we can surface a nice
-  // error even if the unique index hasn't been applied to the DB yet.
+  // Belt-and-braces pre-check for double-booking + doctor availability.
+  // `get_unavailable_slots` returns booked + outside-hours + on-break in one
+  // round trip; we then re-check booked specifically to produce a nicer
+  // error message for the most common case.
   if (slot) {
     const dayISO = when.toISOString().slice(0, 10);
-    const booked = await getBookedSlots(doctorId, dayISO);
-    if (booked.includes(slot)) {
-      return { data: null, error: "This time slot is already booked" };
+    const unavailable = await getUnavailableSlots(doctorId, dayISO);
+    if (unavailable.includes(slot)) {
+      const booked = await getBookedSlots(doctorId, dayISO);
+      if (booked.includes(slot)) {
+        return { data: null, error: "This time slot is already booked" };
+      }
+      return {
+        data: null,
+        error: "Doctor is not available at this time — please pick another slot.",
+      };
     }
   }
 
@@ -418,13 +428,21 @@ export async function rescheduleAppointment(
   // Pre-check: only flag a collision if we're actually moving to a *different*
   // (doctor, day, slot) triple. Rescheduling onto the same slot is a no-op.
   if (nextSlot) {
-    const booked = await getBookedSlots(nextDoctorId, nextDay);
     const stayingPut =
       nextDoctorId === current.doctor_id &&
       nextSlot === current.time_slot &&
       nextDay === currentDay;
-    if (!stayingPut && booked.includes(nextSlot)) {
-      return { error: "This time slot is already booked" };
+    if (!stayingPut) {
+      const unavailable = await getUnavailableSlots(nextDoctorId, nextDay);
+      if (unavailable.includes(nextSlot)) {
+        const booked = await getBookedSlots(nextDoctorId, nextDay);
+        if (booked.includes(nextSlot)) {
+          return { error: "This time slot is already booked" };
+        }
+        return {
+          error: "Doctor is not available at this time — please pick another slot.",
+        };
+      }
     }
   }
 

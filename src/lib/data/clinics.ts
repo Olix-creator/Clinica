@@ -35,8 +35,10 @@ export async function listClinics(): Promise<Clinic[]> {
  * Directory search for the public /search page.
  *
  *   city       → substring, case-insensitive (ILIKE "%city%")
- *   specialty  → exact match against the clinic's `specialty` column
- *                (dropdown on the UI hands us a known value)
+ *   specialty  → substring, case-insensitive (ILIKE "%specialty%") — the
+ *                dropdown hands us a known value today, but partial match
+ *                keeps us forgiving if a clinic stores e.g. "Cardiology —
+ *                adults" while the dropdown shows "Cardiology".
  *   query      → free-text search across name / description / specialty
  *
  * All three are optional. Missing filter = don't narrow.
@@ -65,7 +67,7 @@ export async function searchClinics({
   if (city_) q = q.ilike("city", `%${escapeLike(city_)}%`);
 
   const specialty_ = specialty?.trim();
-  if (specialty_) q = q.ilike("specialty", escapeLike(specialty_));
+  if (specialty_) q = q.ilike("specialty", `%${escapeLike(specialty_)}%`);
 
   const query_ = query?.trim();
   if (query_) {

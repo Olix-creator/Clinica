@@ -15,6 +15,10 @@ import { getAvailability, getBreaks } from "@/lib/data/availability";
 import { createClient } from "@/lib/supabase/server";
 import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel";
 import { AvailabilitySetup } from "@/components/doctor/AvailabilitySetup";
+import {
+  ClinicProfileEditor,
+  type EditableClinic,
+} from "@/components/settings/ClinicProfileEditor";
 import SignOutButton from "@/components/layout/SignOutButton";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +84,20 @@ export default async function SettingsPage() {
     .eq("id", profile.id)
     .maybeSingle();
   const phone = phoneRow?.phone ?? null;
+
+  // Pull the full clinic rows (with migration 0013 fields) so the owner can
+  // edit phone/address/etc and see trial status. We only run this query if
+  // the user actually owns clinics.
+  let editableClinics: EditableClinic[] = [];
+  if (ownedClinicIds.length > 0) {
+    const { data: rows } = await supabase
+      .from("clinics")
+      .select(
+        "id, name, phone, address, city, specialty, description, status, plan_type, trial_end_date, monthly_appointments_count",
+      )
+      .in("id", ownedClinicIds);
+    editableClinics = (rows ?? []) as EditableClinic[];
+  }
 
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, {
     year: "numeric",
@@ -160,6 +178,30 @@ export default async function SettingsPage() {
             initialAvailability={availability}
             initialBreaks={breaks}
           />
+        </section>
+      )}
+
+      {/* Clinic profile — owners only. Edit the public-facing fields
+          (name, phone, address, city, specialty, description) and see
+          the plan / trial / usage snapshot per clinic. */}
+      {editableClinics.length > 0 && (
+        <section className="bg-surface-container-low rounded-3xl p-6 sm:p-8 space-y-4">
+          <div className="flex items-start gap-3">
+            <span className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-4 h-4" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">Clinic profile</h2>
+              <p className="text-sm text-on-surface-variant">
+                Edit your public clinic page and check your plan status.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {editableClinics.map((c) => (
+              <ClinicProfileEditor key={c.id} clinic={c} />
+            ))}
+          </div>
         </section>
       )}
 

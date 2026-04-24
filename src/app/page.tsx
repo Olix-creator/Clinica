@@ -154,7 +154,7 @@ export default function LandingPage() {
             <Link href="/search" className="hover:text-on-surface transition">Find a clinic</Link>
             <a href="#features" className="hover:text-on-surface transition">Features</a>
             <a href="#how" className="hover:text-on-surface transition">How it works</a>
-            <a href="#pricing" className="hover:text-on-surface transition">Pricing</a>
+            <Link href="/pricing" className="hover:text-on-surface transition">Pricing</Link>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -186,7 +186,7 @@ export default function LandingPage() {
               <Link href="/search" onClick={() => setMenu(false)}>Find a clinic</Link>
               <a href="#features" onClick={() => setMenu(false)}>Features</a>
               <a href="#how" onClick={() => setMenu(false)}>How it works</a>
-              <a href="#pricing" onClick={() => setMenu(false)}>Pricing</a>
+              <Link href="/pricing" onClick={() => setMenu(false)}>Pricing</Link>
               <div className="pt-4 border-t border-outline-variant/40 flex flex-col gap-3">
                 <Link href="/login" className="px-4 py-3 rounded-xl bg-surface-container-highest text-center">Sign in</Link>
                 <Link

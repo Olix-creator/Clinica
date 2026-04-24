@@ -3,20 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Link from "next/link";
 import {
+  ArrowRight,
   Building2,
   ChevronDown,
   Crown,
   Loader2,
   Mail,
-  Plus,
   Stethoscope,
   Trash2,
   UserPlus,
   Users,
 } from "lucide-react";
 import {
-  createClinicAction,
   inviteMemberAction,
   removeMemberAction,
 } from "@/app/(dashboard)/doctor/actions";
@@ -138,29 +138,22 @@ export function ClinicManagementPanel({ clinics }: { clinics: OwnedClinic[] }) {
 
       {open && (
         <div className="px-6 pb-6 border-t border-outline-variant/30 pt-6 space-y-6">
-          {/* Create clinic */}
+          {/* Create clinic — routed through /pricing so the owner picks a plan
+              and provides the verification fields (phone + address). */}
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 ml-1">
               Create a new clinic
             </p>
-            <form
-              onSubmit={runAction(createClinicAction, "Clinic created")}
-              className="flex flex-col sm:flex-row gap-2"
+            <Link
+              href="/pricing?onboarding=1"
+              className={BTN + " w-full sm:w-auto"}
             >
-              <input
-                name="name"
-                placeholder="Clinic name (e.g. Lumina Downtown)"
-                className={INPUT}
-                disabled={pending}
-                required
-              />
-              <button type="submit" disabled={pending} className={BTN}>
-                {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Create clinic
-              </button>
-            </form>
+              <ArrowRight className="w-4 h-4" />
+              Start clinic onboarding
+            </Link>
             <p className="text-xs text-on-surface-variant mt-2 ml-1">
-              You&rsquo;re automatically the owner of any clinic you create, on the Free plan.
+              You&rsquo;ll pick a plan, then tell us a few verification details
+              — phone and address. Free trial, no card.
             </p>
           </div>
 

@@ -17,6 +17,11 @@ import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStat
 import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
 import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel";
+import {
+  PlanStatusBanner,
+  type ClinicPlanSnapshot,
+} from "@/components/doctor/PlanStatusBanner";
+import { createClient } from "@/lib/supabase/server";
 import { AnalyticsStrip } from "@/components/doctor/AnalyticsStrip";
 import TodayQueue from "@/components/doctor/TodayQueue";
 import DoctorAppointmentRow from "@/components/doctor/DoctorAppointmentRow";
@@ -64,6 +69,19 @@ export default async function DoctorPage() {
       members: memberLists[i] ?? [],
     };
   });
+
+  // Plan snapshots for owners so we can render the trial / usage banner.
+  let planSnapshots: ClinicPlanSnapshot[] = [];
+  if (ownedClinicIds.length > 0) {
+    const supabase = await createClient();
+    const { data: rows } = await supabase
+      .from("clinics")
+      .select(
+        "id, name, status, plan_type, trial_end_date, monthly_appointments_count",
+      )
+      .in("id", ownedClinicIds);
+    planSnapshots = (rows ?? []) as ClinicPlanSnapshot[];
+  }
 
   const primaryClinicId = doctor?.clinic_id ?? ownedClinics[0]?.id ?? null;
   const primaryClinicName =
@@ -172,6 +190,13 @@ export default async function DoctorPage() {
           </p>
         </div>
       </header>
+
+      {/* Plan + trial status (owners) — calls out expiring trials / hit
+          caps / pending verification so the owner can react without
+          digging through settings. */}
+      {isOwner && planSnapshots.length > 0 && (
+        <PlanStatusBanner clinics={planSnapshots} />
+      )}
 
       {/* Clinic management (owners) */}
       {isOwner && <ClinicManagementPanel clinics={ownedClinics} />}

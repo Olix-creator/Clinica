@@ -56,8 +56,13 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          monthly_appointments_count: number
           name: string
+          phone: string | null
+          plan_type: "free" | "premium"
           specialty: string | null
+          status: "pending" | "approved" | "rejected"
+          trial_end_date: string
         }
         Insert: {
           address?: string | null
@@ -66,8 +71,13 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          monthly_appointments_count?: number
           name: string
+          phone?: string | null
+          plan_type?: "free" | "premium"
           specialty?: string | null
+          status?: "pending" | "approved" | "rejected"
+          trial_end_date?: string
         }
         Update: {
           address?: string | null
@@ -76,8 +86,13 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          monthly_appointments_count?: number
           name?: string
+          phone?: string | null
+          plan_type?: "free" | "premium"
           specialty?: string | null
+          status?: "pending" | "approved" | "rejected"
+          trial_end_date?: string
         }
         Relationships: []
       }

@@ -6,6 +6,7 @@ import {
   Stethoscope,
   Building2,
   UserRound,
+  Phone,
 } from "lucide-react";
 import { getClinicById, listPublicDoctorsByClinic } from "@/lib/data/clinics";
 import { createClient } from "@/lib/supabase/server";
@@ -111,6 +112,15 @@ export default async function ClinicPage({
                   <Building2 className="w-4 h-4" />
                   {clinic.address}
                 </span>
+              ) : null}
+              {clinic.phone ? (
+                <a
+                  href={`tel:${clinic.phone}`}
+                  className="inline-flex items-center gap-1.5 hover:text-primary transition"
+                >
+                  <Phone className="w-4 h-4" />
+                  {clinic.phone}
+                </a>
               ) : null}
             </div>
 

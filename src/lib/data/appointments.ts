@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import { TIME_SLOTS, isValidTimeSlot } from "@/lib/appointments/slots";
 import { getUnavailableSlots } from "@/lib/data/availability";
+import { canClinicAcceptBooking } from "@/lib/data/clinics";
 
 export { TIME_SLOTS, isValidTimeSlot };
 
@@ -149,6 +150,17 @@ export async function createAppointment({
     return { data: null, error: "Could not verify doctor/clinic" };
   }
   if (!doctorRow) return { data: null, error: "Selected doctor does not belong to this clinic" };
+
+  // Plan / verification gate (migration 0013). Pending clinics, expired free
+  // trials, and clinics that have already hit the 50/month free-tier cap all
+  // land here. Premium clinics skip every cap.
+  const gate = await canClinicAcceptBooking(clinicId);
+  if (!gate.ok) {
+    return {
+      data: null,
+      error: gate.reason ?? "This clinic cannot accept bookings right now",
+    };
+  }
 
   // Belt-and-braces pre-check for double-booking + doctor availability.
   // `get_unavailable_slots` returns booked + outside-hours + on-break in one

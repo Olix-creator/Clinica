@@ -175,35 +175,51 @@ export async function listClinicSpecialties(limit = 40): Promise<string[]> {
   return out;
 }
 
+/**
+ * Create a clinic. Thin insert helper — it does NOT enforce the verification
+ * requirements (phone + address) so that legacy call sites
+ * (receptionist quick-add, doctor "create a clinic" panel) keep working.
+ * The dedicated onboarding flow at `/onboarding/clinic` layers its own
+ * validation on top so new sign-ups always provide phone + address for
+ * the manual-approval gate.
+ *
+ * The row lands with `status = 'pending'` (DB default from migration
+ * 0013), plan_type = 'free', and trial_end_date = now + 30 days.
+ */
 export async function createClinic({
   name,
+  phone,
+  address,
   specialty,
   city,
-  address,
   description,
 }: {
   name: string;
+  phone?: string;
+  address?: string;
   specialty?: string;
   city?: string;
-  address?: string;
   description?: string;
 }): Promise<{ data: Clinic | null; error: string | null }> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { data: null, error: "Not authenticated" };
 
-  const trimmed = name.trim();
-  if (!trimmed) return { data: null, error: "Clinic name is required" };
+  const name_ = name.trim();
+  if (!name_) return { data: null, error: "Clinic name is required" };
 
   const { data, error } = await supabase
     .from("clinics")
     .insert({
-      name: trimmed,
+      name: name_,
+      phone: phone?.trim() || null,
+      address: address?.trim() || null,
       created_by: userData.user.id,
       specialty: specialty?.trim() || null,
       city: city?.trim() || null,
-      address: address?.trim() || null,
       description: description?.trim() || null,
+      // status / plan_type / trial_end_date / monthly_appointments_count
+      // come from DB defaults so we always get a consistent clock start.
     })
     .select("*")
     .single();
@@ -213,6 +229,112 @@ export async function createClinic({
     return { data: null, error: error.message };
   }
   return { data, error: null };
+}
+
+/**
+ * Update the clinic-profile fields the owner can edit from the settings
+ * page. Row-level security enforces `auth.uid() = created_by`, so a
+ * mismatched user can't update someone else's clinic. `status` and
+ * `plan_type` are intentionally NOT accepted here — only the admin can
+ * flip those values.
+ */
+export async function updateClinicProfile(
+  clinicId: string,
+  patch: {
+    name?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    specialty?: string;
+    description?: string;
+  },
+): Promise<{ data: Clinic | null; error: string | null }> {
+  if (!clinicId) return { data: null, error: "Missing clinic id" };
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { data: null, error: "Not authenticated" };
+
+  // Drop empty strings — "" from an untouched form field should not
+  // overwrite an existing value with null.
+  const norm = (v: string | undefined) => (v?.trim() ? v.trim() : undefined);
+
+  const update = {
+    name: norm(patch.name),
+    phone: norm(patch.phone),
+    address: norm(patch.address),
+    city: norm(patch.city),
+    specialty: norm(patch.specialty),
+    description: norm(patch.description),
+  };
+
+  if (update.name === undefined) delete (update as Record<string, unknown>).name;
+
+  const { data, error } = await supabase
+    .from("clinics")
+    .update(update)
+    .eq("id", clinicId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("[clinica] updateClinicProfile:", error.message);
+    return { data: null, error: error.message };
+  }
+  return { data, error: null };
+}
+
+/**
+ * Pricing / trial gate. Calls the `clinic_can_accept_booking` RPC added
+ * in migration 0013. The RPC encapsulates:
+ *   - status must be 'approved'
+ *   - premium → always ok
+ *   - free → trial_end_date must be in the future AND < 50 appointments this month
+ * Returns a plain shape the UI can render directly.
+ */
+export type ClinicBookingCheck = {
+  ok: boolean;
+  reason: string | null;
+  planType: "free" | "premium";
+  trialDaysLeft: number;
+  countThisMonth: number;
+  trialEndDate: string | null;
+};
+
+export async function canClinicAcceptBooking(
+  clinicId: string,
+): Promise<ClinicBookingCheck> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("clinic_can_accept_booking", { p_clinic_id: clinicId })
+    .single();
+  if (error || !data) {
+    console.error("[clinica] canClinicAcceptBooking:", error?.message);
+    // Fail closed: if the RPC is unreachable we block the booking.
+    return {
+      ok: false,
+      reason: error?.message ?? "Could not verify clinic plan status",
+      planType: "free",
+      trialDaysLeft: 0,
+      countThisMonth: 0,
+      trialEndDate: null,
+    };
+  }
+  const row = data as {
+    ok: boolean;
+    reason: string | null;
+    plan_type: "free" | "premium";
+    trial_days_left: number;
+    count_this_month: number;
+    trial_end_date: string | null;
+  };
+  return {
+    ok: row.ok,
+    reason: row.reason,
+    planType: row.plan_type ?? "free",
+    trialDaysLeft: row.trial_days_left ?? 0,
+    countThisMonth: row.count_this_month ?? 0,
+    trialEndDate: row.trial_end_date,
+  };
 }
 
 /**

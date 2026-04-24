@@ -40,9 +40,12 @@ export function ClinicBookingCta({
     const params = new URLSearchParams({ clinicId });
     if (doctorId) params.set("doctorId", doctorId);
     const target = `/booking?${params.toString()}`;
+    // Match the auth proxy's convention (`?redirect=`) so the login page
+    // works the same whether the user hit it via a gated route or via our
+    // explicit redirect here.
     const href = isSignedIn
       ? target
-      : `/login?next=${encodeURIComponent(target)}`;
+      : `/login?redirect=${encodeURIComponent(target)}`;
     router.push(href);
   }
 

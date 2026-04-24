@@ -41,7 +41,12 @@ function GoogleIcon() {
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = safeNext(searchParams.get("next"));
+  // Accept both `?redirect=` (used by the auth proxy at src/proxy.ts) and
+  // `?next=` (used by the public clinic-discovery CTA). Either one gets
+  // the same open-redirect guard.
+  const next = safeNext(
+    searchParams.get("redirect") ?? searchParams.get("next"),
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

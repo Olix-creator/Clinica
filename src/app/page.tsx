@@ -151,10 +151,10 @@ export default function LandingPage() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-sm text-on-surface-variant">
+            <Link href="/search" className="hover:text-on-surface transition">Find a clinic</Link>
             <a href="#features" className="hover:text-on-surface transition">Features</a>
             <a href="#how" className="hover:text-on-surface transition">How it works</a>
             <a href="#pricing" className="hover:text-on-surface transition">Pricing</a>
-            <a href="#testimonials" className="hover:text-on-surface transition">Testimonials</a>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -183,10 +183,10 @@ export default function LandingPage() {
         {menu && (
           <div className="md:hidden border-t border-outline-variant/40 bg-surface-container-low/95 backdrop-blur-xl">
             <div className="px-6 py-6 flex flex-col gap-4 text-sm">
+              <Link href="/search" onClick={() => setMenu(false)}>Find a clinic</Link>
               <a href="#features" onClick={() => setMenu(false)}>Features</a>
               <a href="#how" onClick={() => setMenu(false)}>How it works</a>
               <a href="#pricing" onClick={() => setMenu(false)}>Pricing</a>
-              <a href="#testimonials" onClick={() => setMenu(false)}>Testimonials</a>
               <div className="pt-4 border-t border-outline-variant/40 flex flex-col gap-3">
                 <Link href="/login" className="px-4 py-3 rounded-xl bg-surface-container-highest text-center">Sign in</Link>
                 <Link
@@ -224,17 +224,17 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/signup"
+              href="/search"
               className="inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition"
             >
-              Start free
+              Find a clinic
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/login"
+              href="/signup"
               className="inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-surface-container-highest text-on-surface font-medium hover:bg-surface-bright transition"
             >
-              I already have an account
+              I run a clinic
             </Link>
           </div>
 

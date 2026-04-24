@@ -107,17 +107,26 @@ export function BookingForm({
   loadSlots,
   findSuggestion,
   initialPhone = "",
+  initialClinicId = "",
+  initialDoctorId = "",
 }: {
   clinics: Clinic[];
   action: (formData: FormData) => Promise<BookAppointmentResult>;
   loadSlots: (doctorId: string, dayISO: string) => Promise<LoadSlotsResult>;
   findSuggestion: (doctorId: string, fromDayISO: string) => Promise<SuggestResult>;
   initialPhone?: string;
+  /** Pre-select a clinic — used when the user arrives from a /clinic/:id page. */
+  initialClinicId?: string;
+  /** Pre-select a doctor within that clinic. */
+  initialDoctorId?: string;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [clinicId, setClinicId] = useState("");
-  const [doctorId, setDoctorId] = useState("");
+  // When we arrive with a clinic pre-selected, jump straight to step 2 (doctor),
+  // or step 3 (time) if a doctor is also known.
+  const initialStep = initialDoctorId ? 3 : initialClinicId ? 2 : 1;
+  const [step, setStep] = useState(initialStep);
+  const [clinicId, setClinicId] = useState(initialClinicId);
+  const [doctorId, setDoctorId] = useState(initialDoctorId);
   const [dayISO, setDayISO] = useState<string>(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -156,8 +165,10 @@ export function BookingForm({
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) toast.error("Could not load doctors");
-        setDoctors(((data ?? []) as unknown) as Doctor[]);
-        setDoctorId("");
+        const list = ((data ?? []) as unknown) as Doctor[];
+        setDoctors(list);
+        // Keep a pre-selected doctor if it belongs to this clinic; otherwise reset.
+        setDoctorId((prev) => (prev && list.some((d) => d.id === prev) ? prev : ""));
         setLoadingDoctors(false);
       });
     return () => {

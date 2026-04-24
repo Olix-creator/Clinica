@@ -2,9 +2,27 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+
+/**
+ * Resolve a post-login destination from the `?next=` query param.
+ *
+ * Guardrails:
+ *   - must be a relative path starting with `/`
+ *   - must NOT start with `//` or `/\` (those would become scheme-relative URLs)
+ *   - falls back to `/dashboard` on anything sketchy
+ *
+ * Anything goes to the dashboard unless we can prove the target is safe and
+ * local, which kills the classic open-redirect footgun.
+ */
+function safeNext(raw: string | null | undefined): string {
+  if (!raw) return "/dashboard";
+  if (!raw.startsWith("/")) return "/dashboard";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/dashboard";
+  return raw;
+}
 
 const GOOGLE_CLIENT_ID = "35747672771-j771sf9s3j1l1ocb7ae7jmo8028710rt.apps.googleusercontent.com";
 const EDGE_FN_URL = "https://mixppfepddefteaelthu.supabase.co/functions/v1/google-auth";
@@ -22,6 +40,8 @@ function GoogleIcon() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = safeNext(searchParams.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +61,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    router.push(next);
     router.refresh();
   }
 

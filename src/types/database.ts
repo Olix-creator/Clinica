@@ -50,22 +50,34 @@ export type Database = {
       }
       clinics: {
         Row: {
+          address: string | null
+          city: string | null
           created_at: string
           created_by: string
+          description: string | null
           id: string
           name: string
+          specialty: string | null
         }
         Insert: {
+          address?: string | null
+          city?: string | null
           created_at?: string
           created_by: string
+          description?: string | null
           id?: string
           name: string
+          specialty?: string | null
         }
         Update: {
+          address?: string | null
+          city?: string | null
           created_at?: string
           created_by?: string
+          description?: string | null
           id?: string
           name?: string
+          specialty?: string | null
         }
         Relationships: []
       }

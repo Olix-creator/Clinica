@@ -3,157 +3,358 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  CalendarPlus,
+  Calendar,
+  ChevronDown,
+  Home,
+  LogOut,
+  Plus,
+  Settings,
+  Sparkles,
   Users,
   Building2,
-  LifeBuoy,
-  Sparkles,
-  ClipboardList,
-  Stethoscope,
-  User,
-  BarChart3,
-  Settings,
 } from "lucide-react";
 import SignOutButton from "./SignOutButton";
 
 type Role = "patient" | "doctor" | "receptionist";
 
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
-
-const NAV: Record<Role, NavItem[]> = {
-  patient: [
-    { href: "/patient", label: "Overview", icon: LayoutDashboard },
-    { href: "/booking", label: "Book visit", icon: CalendarPlus },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ],
-  doctor: [
-    { href: "/doctor", label: "Today", icon: Stethoscope },
-    { href: "/patients", label: "Patients", icon: Users },
-    { href: "/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ],
-  receptionist: [
-    { href: "/receptionist", label: "Schedule", icon: ClipboardList },
-    { href: "/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/booking", label: "New booking", icon: CalendarPlus },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ],
+type NavEntry = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+  badge?: number;
 };
 
-const ROLE_LABEL: Record<Role, string> = {
-  patient: "Patient",
-  doctor: "Clinician",
-  receptionist: "Reception",
-};
-
-const ROLE_ICON: Record<Role, typeof User> = {
-  patient: User,
-  doctor: Stethoscope,
-  receptionist: ClipboardList,
-};
-
+/**
+ * Sidebar — Clinica handoff design (`DashboardShell`).
+ *
+ * 240px-wide rail with:
+ *   1. Logo + plan chip
+ *   2. Clinic switcher card (`homeClinic`)
+ *   3. Nav buttons with optional badge
+ *   4. Free-trial usage card
+ *   5. User row + sign out
+ *
+ * Per-role nav items are tuned to the routes that actually exist in
+ * the app today. We don't surface routes that aren't implemented.
+ */
 export default function Sidebar({
   role,
   fullName,
   email,
   homeClinic,
+  trial,
 }: {
   role: Role;
   fullName: string | null;
   email: string | null;
   homeClinic?: { name: string; plan: string; role: string } | null;
+  trial?: { used: number; limit: number; planLabel: string } | null;
 }) {
   const pathname = usePathname();
+
+  const NAV: Record<Role, NavEntry[]> = {
+    patient: [
+      { href: "/patient", label: "Overview", icon: Home },
+      { href: "/booking", label: "Book visit", icon: Plus },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+    doctor: [
+      { href: "/doctor", label: "Today", icon: Home },
+      { href: "/patients", label: "Patients", icon: Users },
+      { href: "/booking", label: "New booking", icon: Plus },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+    receptionist: [
+      { href: "/receptionist", label: "Schedule", icon: Calendar },
+      { href: "/patients", label: "Patients", icon: Users },
+      { href: "/booking", label: "New booking", icon: Plus },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  };
   const items = NAV[role] ?? [];
-  const RoleIcon = ROLE_ICON[role];
-  const primaryCta: NavItem | null = role === "patient"
-    ? { href: "/booking", label: "Book an appointment", icon: CalendarPlus }
-    : role === "receptionist"
-    ? { href: "/booking", label: "New appointment", icon: CalendarPlus }
-    : null;
+
+  const initials = (fullName ?? email ?? "U")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
+  const planLabel = trial?.planLabel ?? homeClinic?.plan ?? "FREE";
 
   return (
-    <aside className="hidden lg:flex fixed inset-y-0 left-0 w-72 z-40 flex-col bg-surface-container-low rounded-r-[3rem] py-8">
-      <Link href="/dashboard" className="flex items-center gap-3 px-8 mb-10">
-        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-emerald">
-          <Sparkles className="w-5 h-5 text-on-primary-fixed" />
+    <aside
+      className="hidden lg:flex"
+      style={{
+        position: "fixed",
+        inset: "0 auto 0 0",
+        width: 240,
+        zIndex: 40,
+        background: "var(--surface-bright)",
+        borderRight: "1px solid var(--outline-variant)",
+        flexDirection: "column",
+        height: "100vh",
+      }}
+    >
+      {/* Logo + plan chip */}
+      <Link
+        href="/dashboard"
+        style={{
+          padding: "18px 18px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          textDecoration: "none",
+          color: "var(--on-surface)",
+        }}
+      >
+        <svg
+          width={22}
+          height={22}
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          style={{ color: "var(--primary)" }}
+          aria-hidden
+        >
+          <path d="M12 2a7 7 0 0 0-7 7v6.2a4.8 4.8 0 1 0 2.4 0V9a4.6 4.6 0 1 1 9.2 0v.2a3.2 3.2 0 1 0 1.6 0V9a7 7 0 0 0-6.2-7Z" />
+          <circle cx="6.2" cy="18.8" r="2" />
+          <circle cx="18.2" cy="10.8" r="1.6" />
+        </svg>
+        <span style={{ fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" }}>
+          Clinica
         </span>
-        <div>
-          <p className="text-base font-semibold tracking-tight">Lumina</p>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-on-surface-variant">Clinical</p>
-        </div>
+        <span
+          className="chip primary"
+          style={{ marginLeft: "auto", fontSize: 10, padding: "2px 7px" }}
+        >
+          {planLabel.toUpperCase()}
+        </span>
       </Link>
 
-      <div className="px-6 mb-6 space-y-3">
-        <div className="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-highest">
-          <span className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-            <RoleIcon className="w-5 h-5 text-primary" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-medium truncate">{fullName ?? email ?? "User"}</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">{ROLE_LABEL[role]}</p>
-          </div>
-        </div>
-        {homeClinic && (
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-surface-container">
-            <span className="w-10 h-10 rounded-xl bg-tertiary/15 flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-tertiary" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{homeClinic.name}</p>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">
-                {homeClinic.role === "owner" ? "Owner" : homeClinic.role === "doctor" ? "Doctor" : "Reception"}
-              </p>
+      {/* Clinic switcher */}
+      {homeClinic ? (
+        <div style={{ padding: "4px 12px 12px" }}>
+          <button
+            type="button"
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "var(--bg-muted)",
+              border: "1px solid var(--outline-variant)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                background: "var(--primary)",
+                color: "#fff",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Building2 size={15} />
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-semibold uppercase tracking-[0.14em]">
-              {homeClinic.plan}
-            </span>
-          </div>
-        )}
-      </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {homeClinic.name}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-subtle)" }}>
+                {homeClinic.role === "owner"
+                  ? "Owner"
+                  : homeClinic.role === "doctor"
+                    ? "Doctor"
+                    : "Reception"}
+              </div>
+            </div>
+            <ChevronDown size={14} style={{ color: "var(--text-subtle)" }} />
+          </button>
+        </div>
+      ) : null}
 
-      <nav className="flex-1 px-4 space-y-1">
+      {/* Nav */}
+      <nav
+        style={{
+          padding: "4px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+        }}
+      >
         {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const active =
+            pathname === item.href || pathname.startsWith(item.href + "/");
+          const Ic = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-                active
-                  ? "bg-primary/15 text-primary"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest"
-              }`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                width: "100%",
+                padding: "9px 12px",
+                borderRadius: 10,
+                background: active ? "var(--primary-tint)" : "transparent",
+                color: active ? "var(--primary-600)" : "var(--text-muted)",
+                fontSize: 14,
+                fontWeight: active ? 600 : 500,
+                textDecoration: "none",
+                transition: "background .1s ease, color .1s ease",
+              }}
             >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+              <Ic size={18} />
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.badge != null ? (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "2px 7px",
+                    borderRadius: 999,
+                    background: active
+                      ? "var(--primary)"
+                      : "var(--outline-variant)",
+                    color: active ? "#fff" : "var(--text-muted)",
+                  }}
+                >
+                  {item.badge}
+                </span>
+              ) : null}
             </Link>
           );
         })}
       </nav>
 
-      <div className="px-6 space-y-3 mt-6">
-        {primaryCta && (
-          <Link
-            href={primaryCta.href}
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition text-sm"
+      {/* Footer: usage card + user row */}
+      <div style={{ marginTop: "auto", padding: 12 }}>
+        {trial ? <UsageCard trial={trial} /> : null}
+        <hr className="sep" style={{ margin: "12px 0" }} />
+        <div
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <span
+            className="avatar"
+            style={{
+              width: 28,
+              height: 28,
+              background: "#dbeafe",
+              color: "#1d4ed8",
+              fontSize: 11,
+            }}
           >
-            <primaryCta.icon className="w-4 h-4" />
-            {primaryCta.label}
-          </Link>
-        )}
-        <div className="pt-3 border-t border-outline-variant/30 space-y-1">
-          <a
-            href="mailto:support@lumina.clinic"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition"
-          >
-            <LifeBuoy className="w-4 h-4" />
-            Support
-          </a>
-          <SignOutButton variant="sidebar" />
+            {initials}
+          </span>
+          <div style={{ flex: 1, textAlign: "left", minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--on-surface)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {fullName ?? email ?? "User"}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text-subtle)",
+                textTransform: "capitalize",
+              }}
+            >
+              {role}
+            </div>
+          </div>
+          <SignOutButton variant="sidebar-icon" />
         </div>
       </div>
     </aside>
+  );
+}
+
+function UsageCard({
+  trial,
+}: {
+  trial: { used: number; limit: number; planLabel: string };
+}) {
+  const pct = Math.min(100, Math.round((trial.used / trial.limit) * 100));
+  const left = Math.max(0, trial.limit - trial.used);
+  return (
+    <div
+      style={{
+        padding: 14,
+        background: "var(--surface)",
+        border: "1px solid var(--outline-variant)",
+        borderRadius: 12,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+          marginBottom: 8,
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 600 }}>{trial.planLabel}</span>
+        <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>
+          {trial.used} / {trial.limit}
+        </span>
+      </div>
+      <div
+        style={{
+          height: 6,
+          background: "var(--outline-variant)",
+          borderRadius: 999,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${pct}%`,
+            background: "var(--primary)",
+            borderRadius: 999,
+          }}
+        />
+      </div>
+      <div className="t-small" style={{ marginTop: 8, lineHeight: 1.4 }}>
+        {left} appointments left this month.
+      </div>
+      <Link
+        href="/pricing"
+        className="btn primary sm"
+        style={{ width: "100%", marginTop: 10 }}
+      >
+        <Sparkles size={13} /> Go Premium
+      </Link>
+    </div>
   );
 }

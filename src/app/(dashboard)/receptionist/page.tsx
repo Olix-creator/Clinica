@@ -1,5 +1,6 @@
-import { ClipboardList, CalendarDays, Users, Activity } from "lucide-react";
+import { Calendar, Check, ClipboardList, Users } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { DashTopbar } from "@/components/layout/DashTopbar";
 import { listClinics } from "@/lib/data/clinics";
 import { listAllDoctors } from "@/lib/data/doctors";
 import {
@@ -90,100 +91,205 @@ export default async function ReceptionistPage({
     done: allAppointments.filter((a) => a.status === "done").length,
   };
 
+  const firstName = profile.full_name?.split(" ")[0] ?? "Reception";
+  const subtitle = dateISO
+    ? `${dateISO} · ${counts.total} appointments across all clinics`
+    : `${counts.total} appointments across all clinics`;
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
+    <>
       <DashboardRealtime channelKey={`receptionist:${profile.id}`} />
+      <DashTopbar
+        title={`Front desk · ${firstName}`}
+        subtitle={subtitle}
+        actions={<AddAppointmentModal clinics={clinics} />}
+      />
 
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Schedule canvas</p>
-          <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
-            Welcome, {profile.full_name?.split(" ")[0] ?? "Reception"}.
-          </h1>
-          <p className="text-on-surface-variant mt-2">Your live overview of every clinic and every visit.</p>
+      <div
+        style={{
+          padding: "24px 32px 40px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+      >
+        {/* Stat cards */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 14,
+          }}
+        >
+          <StatCard
+            label={dateISO ? "This day" : "All time"}
+            value={counts.total}
+            Ic={Calendar}
+            tone="primary"
+          />
+          <StatCard
+            label="Pending"
+            value={counts.pending}
+            Ic={ClipboardList}
+            tone="warn"
+          />
+          <StatCard
+            label="Confirmed"
+            value={counts.confirmed}
+            Ic={Check}
+            tone="primary"
+          />
+          <StatCard
+            label="Completed"
+            value={counts.done}
+            Ic={Users}
+            tone="success"
+          />
         </div>
-      </header>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: dateISO ? "This day" : "All time", value: counts.total, icon: CalendarDays },
-          { label: "Pending", value: counts.pending, icon: Activity },
-          { label: "Confirmed", value: counts.confirmed, icon: ClipboardList },
-          { label: "Completed", value: counts.done, icon: Users },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl bg-surface-container-low p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">{s.label}</p>
-              <s.icon className="w-4 h-4 text-primary" />
+        {/* Express Booking */}
+        <ExpressBookingPanel />
+
+        {/* Full Day View — per-doctor bento for the focused day */}
+        {doctorsWithAppointments.length > 0 && (
+          <section style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 4px",
+              }}
+            >
+              <div>
+                <div className="t-eyebrow">Full day view</div>
+                <h2
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 18,
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {dateISO ? dateISO : "Today"} · by doctor
+                </h2>
+              </div>
+              <span className="t-small">
+                {doctorsWithAppointments.length} doctor
+                {doctorsWithAppointments.length === 1 ? "" : "s"}
+              </span>
             </div>
-            <p className="font-headline text-3xl font-semibold">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Express Booking — the fastest path from “walk-in patient” to “on the schedule” */}
-      <ExpressBookingPanel />
-
-      {/* Full Day View — per-doctor bento for the focused day */}
-      {doctorsWithAppointments.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">
-                Full day view
-              </p>
-              <h2 className="font-headline text-xl font-semibold mt-1">
-                {dateISO ? `${dateISO}` : "Today"} · by doctor
-              </h2>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {doctorsWithAppointments.map(({ doctor, appointments }) => (
+                <DoctorDayColumn
+                  key={doctor.id}
+                  doctor={doctor}
+                  appointments={appointments}
+                />
+              ))}
             </div>
-            <span className="text-xs text-on-surface-variant">
-              {doctorsWithAppointments.length} doctor
-              {doctorsWithAppointments.length === 1 ? "" : "s"}
-            </span>
+          </section>
+        )}
+
+        {/* Clinic & doctor bootstrap (collapsed) */}
+        <BootstrapPanel clinics={clinics} />
+
+        {/* Filter row */}
+        <div
+          className="card"
+          style={{
+            padding: "14px 18px",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <NameFilter />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <DateFilter />
+            <StatusFilter />
           </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {doctorsWithAppointments.map(({ doctor, appointments }) => (
-              <DoctorDayColumn
-                key={doctor.id}
-                doctor={doctor}
-                appointments={appointments}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Clinic & doctor bootstrap (collapsed) */}
-      <BootstrapPanel clinics={clinics} />
-
-      {/* Control bar */}
-      <div className="rounded-2xl bg-surface-container-low p-4 flex flex-col lg:flex-row lg:items-center gap-3">
-        <NameFilter />
-        <div className="flex items-center gap-2 flex-wrap">
-          <DateFilter />
-          <StatusFilter />
         </div>
-        <div className="lg:ml-auto">
-          <AddAppointmentModal clinics={clinics} />
-        </div>
-      </div>
 
-      {/* Schedule */}
-      <section className="rounded-[2rem] bg-surface-container-low p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-4 px-2">
-          <div>
-            <h2 className="font-headline text-xl font-semibold">Appointments</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">
+        {/* Schedule table */}
+        <section
+          className="card"
+          style={{ padding: 0, overflow: "hidden" }}
+        >
+          <div
+            style={{
+              padding: "18px 22px",
+              borderBottom: "1px solid var(--outline-variant)",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Appointments</div>
+            <div className="t-small" style={{ marginTop: 2 }}>
               {dateISO ? `Filtered by ${dateISO}` : "All clinics"}
               {statusFilter ? ` · ${statusFilter}` : ""}
-              {query ? ` · “${query}”` : ""}
+              {query ? ` · "${query}"` : ""}
               {` · ${appointments.length} row${appointments.length === 1 ? "" : "s"}`}
-            </p>
+            </div>
           </div>
-        </div>
-        <AppointmentsTable appointments={appointments} />
-      </section>
+          <div style={{ padding: "8px 12px 16px" }}>
+            <AppointmentsTable appointments={appointments} />
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  Ic,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  Ic: React.ComponentType<{ size?: number }>;
+  tone: "primary" | "success" | "warn" | "default";
+}) {
+  const tones = {
+    primary: { bg: "var(--primary-50)", fg: "var(--primary-600)" },
+    success: { bg: "var(--success-50)", fg: "var(--success)" },
+    warn: { bg: "var(--warn-50)", fg: "var(--warn)" },
+    default: { bg: "var(--bg-muted)", fg: "var(--text-muted)" },
+  }[tone];
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: tones.bg,
+          color: tones.fg,
+          display: "grid",
+          placeItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <Ic size={16} />
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>{label}</div>
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 600,
+          marginTop: 2,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

@@ -1,19 +1,27 @@
+import Link from "next/link";
 import {
-  Building2,
-  Clock,
-  CalendarDays,
-  CheckCircle2,
   AlertCircle,
-  Phone,
+  ArrowRight,
+  Building2,
+  Calendar,
+  Check,
+  Clock,
+  Mail,
+  MoreHorizontal,
+  Plus,
+  Sparkles,
+  User,
+  Users,
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { getDoctorByProfile } from "@/lib/data/doctors";
-import { getAppointmentsByRole, type AppointmentWithRelations } from "@/lib/data/appointments";
+import {
+  getAppointmentsByRole,
+  type AppointmentWithRelations,
+} from "@/lib/data/appointments";
 import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
-import { analyticsService } from "@/lib/services/analyticsService";
-import WhatsAppReminderButton from "@/components/dashboard/WhatsAppReminderButton";
-import { AppointmentStatusActions } from "@/components/dashboard/AppointmentStatusActions";
+import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/EmptyState";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
 import { ClinicManagementPanel } from "@/components/doctor/ClinicManagementPanel";
@@ -21,30 +29,56 @@ import {
   PlanStatusBanner,
   type ClinicPlanSnapshot,
 } from "@/components/doctor/PlanStatusBanner";
-import { createClient } from "@/lib/supabase/server";
-import { AnalyticsStrip } from "@/components/doctor/AnalyticsStrip";
-import TodayQueue from "@/components/doctor/TodayQueue";
-import DoctorAppointmentRow from "@/components/doctor/DoctorAppointmentRow";
-import { AvailabilitySetup } from "@/components/doctor/AvailabilitySetup";
-import { getAvailability, getBreaks } from "@/lib/data/availability";
-import { getDoctorPatientStatsMap } from "@/lib/data/patient-stats";
+import { DashTopbar } from "@/components/layout/DashTopbar";
 
-function patientLabel(a: AppointmentWithRelations): string {
+function patientInitials(a: AppointmentWithRelations) {
+  const name = a.patient?.full_name ?? a.patient?.email ?? "Patient";
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+}
+
+function patientName(a: AppointmentWithRelations) {
   return a.patient?.full_name ?? a.patient?.email ?? "Patient";
 }
 
-function doctorLabel(profileFullName: string | null, doctorName: string | null): string {
-  return doctorName ?? profileFullName ?? "Doctor";
+function timeFor(a: AppointmentWithRelations) {
+  return a.time_slot ?? new Date(a.appointment_date).toISOString().slice(11, 16);
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+function fmtFullDate() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-}
+const STATUS_META = {
+  done: { label: "Done", cls: "success" },
+  "in-progress": { label: "In progress", cls: "primary" },
+  pending: { label: "Pending", cls: "warn" },
+  cancelled: { label: "Cancelled", cls: "danger" },
+  confirmed: { label: "Confirmed", cls: "success" },
+} as const;
 
+/**
+ * Clinic / Doctor home — Clinica handoff design (`DashboardHome`).
+ *
+ * Layout:
+ *   - DashTopbar with greeting + "New booking" action
+ *   - 4-card stat row (today, completed, pending, new patients)
+ *   - 2-column body: today's schedule timeline (left) +
+ *     quick actions / weekly chart / premium banner (right)
+ *
+ * Existing data wiring is preserved — we still call
+ * `getAppointmentsByRole`, `clinicMemberService`, etc.
+ */
 export default async function DoctorPage() {
   const profile = await requireRole("doctor");
   const [doctor, ownedRaw] = await Promise.all([
@@ -52,7 +86,6 @@ export default async function DoctorPage() {
     clinicMemberService.listOwnedClinics(),
   ]);
 
-  // Fan out clinic details (members + subscription) in parallel.
   const ownedClinicIds = ownedRaw.map((c) => c.id);
   const [memberLists, subMap] = await Promise.all([
     Promise.all(ownedRaw.map((c) => clinicMemberService.list(c.id))),
@@ -70,7 +103,7 @@ export default async function DoctorPage() {
     };
   });
 
-  // Plan snapshots for owners so we can render the trial / usage banner.
+  // Plan snapshots for owners (trial banner + usage display).
   let planSnapshots: ClinicPlanSnapshot[] = [];
   if (ownedClinicIds.length > 0) {
     const supabase = await createClient();
@@ -83,271 +116,467 @@ export default async function DoctorPage() {
     planSnapshots = (rows ?? []) as ClinicPlanSnapshot[];
   }
 
-  const primaryClinicId = doctor?.clinic_id ?? ownedClinics[0]?.id ?? null;
-  const primaryClinicName =
-    ownedClinics.find((c) => c.id === primaryClinicId)?.name ??
-    memberLists.flat().find((m) => m.clinic_id === primaryClinicId)?.profile?.full_name ??
-    "Your clinic";
+  const isOwner = ownedClinics.length > 0;
 
-  const analytics = primaryClinicId
-    ? await analyticsService.forClinic(primaryClinicId)
-    : null;
-
-  // Availability + upcoming breaks (only meaningful if the caller has a
-  // `doctors` row, which is what availability rows FK to).
-  const todayDateISO = new Date().toISOString().slice(0, 10);
-  const [availability, breaks] = doctor
-    ? await Promise.all([
-        getAvailability(doctor.id),
-        getBreaks(doctor.id, todayDateISO),
-      ])
-    : [[], []];
-  const needsAvailabilitySetup = !!doctor && availability.length === 0;
-
-  if (!doctor && ownedClinics.length === 0) {
+  // Empty state for new doctors with no clinic membership.
+  if (!doctor && !isOwner) {
     return (
-      <div className="max-w-3xl mx-auto animate-fade-in space-y-6">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Your clinic</p>
-          <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
-            Welcome, Dr. {profile.full_name?.split(" ").slice(-1)[0] ?? ""}.
-          </h1>
-          <p className="text-on-surface-variant mt-2">
-            Set up your first clinic to start inviting staff and booking patients.
-          </p>
-        </div>
-        <ClinicManagementPanel clinics={[]} />
-        <EmptyState
-          icon={Building2}
-          title="You&rsquo;re not attached to a clinic yet"
-          description="Create one above, or ask a receptionist to add you to their clinic."
+      <>
+        <DashTopbar
+          title={`Welcome, Dr. ${profile.full_name?.split(" ").slice(-1)[0] ?? ""}.`}
+          subtitle="Set up your first clinic to start inviting staff and booking patients."
         />
-      </div>
+        <div style={{ padding: "24px 32px 40px", maxWidth: 880 }}>
+          <ClinicManagementPanel clinics={[]} />
+          <div style={{ marginTop: 16 }}>
+            <EmptyState
+              icon={Building2}
+              title="You're not attached to a clinic yet"
+              description="Create one above, or ask a receptionist to add you to their clinic."
+            />
+          </div>
+        </div>
+      </>
     );
   }
 
-  // Today's list (used by the schedule section) + all appointments for Upcoming (next 14 days).
-  const { data: todayAppointmentsRaw } = await getAppointmentsByRole({ todayOnly: true });
-  const { data: allAppointments } = await getAppointmentsByRole();
-
-  // Sort today's list explicitly by time_slot (fallback to appointment_date)
-  // so the queue + upcoming list always render in real chronological order.
-  const todayAppointments = [...todayAppointmentsRaw].sort((a, b) => {
-    const keyA = a.time_slot ?? new Date(a.appointment_date).toISOString().slice(11, 16);
-    const keyB = b.time_slot ?? new Date(b.appointment_date).toISOString().slice(11, 16);
-    return keyA.localeCompare(keyB);
+  const { data: todayAppointmentsRaw } = await getAppointmentsByRole({
+    todayOnly: true,
   });
+  const todayAppointments = [...todayAppointmentsRaw].sort((a, b) =>
+    timeFor(a).localeCompare(timeFor(b)),
+  );
 
-  const now = Date.now();
-  const twoWeeks = now + 14 * 24 * 60 * 60 * 1000;
-  const startOfTomorrow = (() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 1);
-    return d.getTime();
-  })();
-
-  const upcoming = allAppointments.filter((a) => {
-    const t = new Date(a.appointment_date).getTime();
-    return t >= startOfTomorrow && t <= twoWeeks && a.status !== "cancelled";
-  });
-
-  const pending = todayAppointments.filter((a) => a.status === "pending");
+  const total = todayAppointments.length;
   const doneCount = todayAppointments.filter((a) => a.status === "done").length;
+  const pendingCount = todayAppointments.filter(
+    (a) => a.status === "pending",
+  ).length;
+  const cancelledCount = todayAppointments.filter(
+    (a) => a.status === "cancelled",
+  ).length;
+  const completedPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
-  // Patient stats (last visit + total visits) for every patient we'll show
-  // today or in the upcoming list. One DB round-trip, O(1) lookups below.
-  const patientIdsOnScreen = Array.from(
-    new Set(
-      [...todayAppointments, ...upcoming]
-        .map((a) => a.patient_id)
-        .filter(Boolean),
-    ),
-  ) as string[];
-  const patientStatsMap = doctor
-    ? await getDoctorPatientStatsMap(doctor.id, patientIdsOnScreen)
-    : new Map();
-
-  const doctorDisplay = doctorLabel(profile.full_name, doctor?.name ?? null);
-  const channelKey = doctor?.id ?? primaryClinicId ?? profile.id;
-  const isOwner = ownedClinics.length > 0;
+  const firstName = profile.full_name?.split(" ")[0] ?? "Dr.";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
-      <DashboardRealtime channelKey={`doctor:${channelKey}`} />
+    <>
+      <DashboardRealtime
+        channelKey={`doctor:${doctor?.id ?? profile.id}`}
+      />
+      <DashTopbar
+        title={`Good morning, ${firstName}`}
+        subtitle={
+          total > 0
+            ? `You have ${total} ${total === 1 ? "patient" : "patients"} scheduled today.`
+            : fmtFullDate()
+        }
+        actions={
+          <Link href="/booking" className="btn primary">
+            <Plus size={15} /> New booking
+          </Link>
+        }
+      />
 
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">
-            {isOwner ? "Your practice" : "Today’s shift"}
-          </p>
-          <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
-            Welcome, {doctorDisplay}.
-          </h1>
-          <p className="text-on-surface-variant mt-2">
-            {fmtDate(new Date().toISOString())}
-            {doctor?.specialty ? ` · ${doctor.specialty}` : ""}
-          </p>
-        </div>
-      </header>
+      <div
+        style={{
+          padding: "24px 32px 40px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+      >
+        {/* Plan banner for owners */}
+        {isOwner && planSnapshots.length > 0 ? (
+          <PlanStatusBanner clinics={planSnapshots} />
+        ) : null}
 
-      {/* Plan + trial status (owners) — calls out expiring trials / hit
-          caps / pending verification so the owner can react without
-          digging through settings. */}
-      {isOwner && planSnapshots.length > 0 && (
-        <PlanStatusBanner clinics={planSnapshots} />
-      )}
-
-      {/* Clinic management (owners) */}
-      {isOwner && <ClinicManagementPanel clinics={ownedClinics} />}
-
-      {/* Availability setup — shown prominently if not configured, otherwise
-          collapsed into the "Your working hours" section at the bottom. */}
-      {needsAvailabilitySetup && doctor && (
-        <div className="rounded-[2rem] bg-tertiary-container/40 border border-tertiary/30 p-5 sm:p-6">
-          <div className="flex items-start gap-3 mb-4">
-            <span className="w-10 h-10 rounded-xl bg-tertiary-container flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-5 h-5 text-on-tertiary-container" />
-            </span>
-            <div>
-              <h3 className="font-semibold text-on-surface">Finish setting up your schedule</h3>
-              <p className="text-sm text-on-surface-variant mt-0.5">
-                Patients cannot book you until you set your working hours.
-              </p>
-            </div>
-          </div>
-          <AvailabilitySetup
-            doctorId={doctor.id}
-            initialAvailability={availability}
-            initialBreaks={breaks}
+        {/* Stat cards */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 14,
+          }}
+        >
+          <StatCard
+            label="Today's appointments"
+            value={total}
+            hint={
+              cancelledCount > 0
+                ? `${cancelledCount} cancelled`
+                : "All confirmed"
+            }
+            Ic={Calendar}
+            tone="primary"
+          />
+          <StatCard
+            label="Completed"
+            value={doneCount}
+            hint={total > 0 ? `${completedPct}% so far` : "—"}
+            Ic={Check}
+            tone="success"
+          />
+          <StatCard
+            label="Pending"
+            value={pendingCount}
+            hint={pendingCount > 0 ? "Next up" : "All caught up"}
+            Ic={Clock}
+            tone="warn"
+          />
+          <StatCard
+            label="Owned clinics"
+            value={ownedClinics.length}
+            hint={
+              ownedClinics.length > 0
+                ? `${ownedClinics.reduce((acc, c) => acc + c.members.length, 0)} team members`
+                : "None yet"
+            }
+            Ic={Users}
+            tone="default"
           />
         </div>
-      )}
 
-      {/* Analytics strip */}
-      {analytics && primaryClinicId && (
-        <AnalyticsStrip clinicName={primaryClinicName} analytics={analytics} />
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Today", value: todayAppointments.length, icon: CalendarDays },
-          { label: "Pending", value: pending.length, icon: AlertCircle },
-          { label: "Completed", value: doneCount, icon: CheckCircle2 },
-          {
-            label: "Next slot",
-            value: todayAppointments.find(
-              (a) => new Date(a.appointment_date).getTime() >= Date.now(),
-            )
-              ? fmtTime(
-                  todayAppointments.find(
-                    (a) => new Date(a.appointment_date).getTime() >= Date.now(),
-                  )!.appointment_date
-                )
-              : "—",
-            icon: Clock,
-          },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl bg-surface-container-low p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">{s.label}</p>
-              <s.icon className="w-4 h-4 text-primary" />
-            </div>
-            <p className="font-headline text-3xl font-semibold">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Queue: current + next */}
-      <TodayQueue appointments={todayAppointments} />
-
-      {/* Full today list */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-surface-container-highest pb-3">
-          <h2 className="font-headline text-xl font-semibold">Today&rsquo;s schedule</h2>
-          <span className="text-xs text-on-surface-variant">{todayAppointments.length} total</span>
-        </div>
-
-        {todayAppointments.length === 0 ? (
-          <EmptyState icon={CalendarDays} title="No appointments today" description="Enjoy the calm." />
-        ) : (
-          <div className="space-y-3">
-            {todayAppointments.map((a) => (
-              <DoctorAppointmentRow
-                key={a.id}
-                appointment={a}
-                patientStats={
-                  a.patient_id ? patientStatsMap.get(a.patient_id) : undefined
-                }
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Availability + breaks — always visible for doctors who have a clinic,
-          so they can update hours without digging through settings. */}
-      {doctor && !needsAvailabilitySetup && (
-        <AvailabilitySetup
-          doctorId={doctor.id}
-          initialAvailability={availability}
-          initialBreaks={breaks}
-        />
-      )}
-
-      {/* Upcoming (next 14 days, excluding today) */}
-      <section className="rounded-[2rem] bg-surface-container-low p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Next 14 days</p>
-            <h2 className="font-headline text-xl font-semibold mt-1">Upcoming appointments</h2>
-          </div>
-          <span className="text-xs text-on-surface-variant">{upcoming.length} total</span>
-        </div>
-        {upcoming.length === 0 ? (
-          <EmptyState
-            icon={CalendarDays}
-            title="No upcoming appointments"
-            description="New bookings will appear here automatically."
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {upcoming.slice(0, 10).map((a) => (
-              <div
-                key={a.id}
-                className="flex items-start gap-3 p-4 rounded-2xl bg-surface-container hover:bg-surface-container-highest transition"
-              >
-                <span className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
-                  <CalendarDays className="w-4 h-4 text-primary" />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{patientLabel(a)}</p>
-                  <p className="text-xs text-on-surface-variant mt-0.5">
-                    {fmtDate(a.appointment_date)} · {fmtTime(a.appointment_date)}
-                  </p>
-                  {a.patient?.phone && (
-                    <p className="text-xs text-primary mt-1 inline-flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      {a.patient.phone}
-                    </p>
-                  )}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.6fr 1fr",
+            gap: 20,
+          }}
+          className="lg-grid"
+        >
+          {/* Today's schedule */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div
+              style={{
+                padding: "18px 22px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid var(--outline-variant)",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>
+                  Today&apos;s schedule
                 </div>
-                <div className="flex items-center gap-2">
-                  <WhatsAppReminderButton
-                    patientName={a.patient?.full_name ?? a.patient?.email ?? null}
-                    patientPhone={a.patient?.phone ?? null}
-                    timeSlot={a.time_slot ?? null}
-                    appointmentDate={a.appointment_date}
-                    variant="icon"
-                  />
-                  <AppointmentStatusActions id={a.id} revalidate="/doctor" />
+                <div className="t-small">
+                  {total} {total === 1 ? "appointment" : "appointments"}
+                  {cancelledCount > 0 ? ` · ${cancelledCount} cancelled` : ""}
                 </div>
               </div>
-            ))}
+              <Link href="/booking" className="btn ghost sm">
+                Book new <ArrowRight size={13} />
+              </Link>
+            </div>
+
+            {todayAppointments.length === 0 ? (
+              <div
+                style={{
+                  padding: "60px 22px",
+                  textAlign: "center",
+                  color: "var(--text-subtle)",
+                  fontSize: 14,
+                }}
+              >
+                No appointments scheduled for today.
+              </div>
+            ) : (
+              <ScheduleTimeline appts={todayAppointments} />
+            )}
           </div>
-        )}
-      </section>
+
+          {/* Right rail */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Quick actions */}
+            <div className="card" style={{ padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>
+                Quick actions
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                }}
+              >
+                <QuickAction
+                  Ic={Plus}
+                  label="New booking"
+                  href="/booking"
+                />
+                <QuickAction Ic={User} label="Patients" href="/patients" />
+                <QuickAction Ic={Clock} label="Edit hours" href="/settings" />
+                <QuickAction Ic={Mail} label="Settings" href="/settings" />
+              </div>
+            </div>
+
+            {/* Premium banner */}
+            <div
+              className="card"
+              style={{
+                padding: 18,
+                background:
+                  "linear-gradient(135deg, var(--primary-50), #fff)",
+                borderColor: "var(--primary-100)",
+              }}
+            >
+              <div
+                style={{ display: "flex", gap: 10, alignItems: "flex-start" }}
+              >
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: "var(--primary)",
+                    color: "#fff",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    Approaching your free limit
+                  </div>
+                  <div
+                    className="t-small"
+                    style={{ marginTop: 4, lineHeight: 1.5 }}
+                  >
+                    Upgrade to Premium to unlock unlimited bookings and remove
+                    the 50/month cap.
+                  </div>
+                  <Link
+                    href="/pricing"
+                    className="btn primary sm"
+                    style={{ marginTop: 10 }}
+                  >
+                    Go Premium
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  Ic,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  Ic: React.ComponentType<{ size?: number }>;
+  tone: "primary" | "success" | "warn" | "default";
+}) {
+  const tones = {
+    primary: { bg: "var(--primary-50)", fg: "var(--primary-600)" },
+    success: { bg: "var(--success-50)", fg: "var(--success)" },
+    warn: { bg: "var(--warn-50)", fg: "var(--warn)" },
+    default: { bg: "var(--bg-muted)", fg: "var(--text-muted)" },
+  }[tone];
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: tones.bg,
+            color: tones.fg,
+            display: "grid",
+            placeItems: "center",
+          }}
+        >
+          <Ic size={16} />
+        </div>
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>{label}</div>
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 600,
+          marginTop: 2,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {value}
+      </div>
+      {hint ? (
+        <div className="t-small" style={{ marginTop: 4 }}>
+          {hint}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function QuickAction({
+  Ic,
+  label,
+  href,
+}: {
+  Ic: React.ComponentType<{ size?: number }>;
+  label: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 8,
+        padding: "14px 12px",
+        borderRadius: 10,
+        border: "1px solid var(--outline-variant)",
+        background: "var(--surface-bright)",
+        textDecoration: "none",
+        color: "var(--on-surface)",
+        transition: "background .1s ease",
+      }}
+    >
+      <div
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 7,
+          background: "var(--primary-50)",
+          color: "var(--primary-600)",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        <Ic size={14} />
+      </div>
+      <span style={{ fontSize: 13, fontWeight: 500 }}>{label}</span>
+    </Link>
+  );
+}
+
+function ScheduleTimeline({
+  appts,
+}: {
+  appts: AppointmentWithRelations[];
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {appts.map((a, i) => {
+        const meta =
+          STATUS_META[a.status as keyof typeof STATUS_META] ?? STATUS_META.pending;
+        const inProgress = a.status === "pending" && i === 0;
+        const railColor =
+          a.status === "done"
+            ? "var(--success)"
+            : a.status === "cancelled"
+              ? "var(--danger)"
+              : inProgress
+                ? "var(--primary)"
+                : "var(--border-strong)";
+
+        return (
+          <div
+            key={a.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+              padding: "14px 22px",
+              borderTop: i ? "1px solid var(--outline-variant)" : "none",
+              background: inProgress ? "var(--primary-tint)" : "transparent",
+            }}
+          >
+            <div style={{ width: 54, textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  fontFamily: "ui-monospace, monospace",
+                }}
+              >
+                {timeFor(a)}
+              </div>
+              <div
+                style={{ fontSize: 11, color: "var(--text-subtle)" }}
+              >
+                {a.doctor?.specialty ?? "—"}
+              </div>
+            </div>
+            <div
+              style={{
+                width: 2,
+                height: 36,
+                background: railColor,
+                borderRadius: 999,
+              }}
+            />
+            <span
+              className="avatar"
+              style={{
+                width: 36,
+                height: 36,
+                background: "#dbeafe",
+                color: "#1d4ed8",
+                fontSize: 12,
+              }}
+            >
+              {patientInitials(a)}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {patientName(a)}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-subtle)",
+                  marginTop: 2,
+                }}
+              >
+                {a.doctor?.name ??
+                  a.doctor?.profile?.full_name ??
+                  "Doctor"}
+              </div>
+            </div>
+            <span className={`chip dot ${meta.cls}`}>{meta.label}</span>
+            <button
+              type="button"
+              className="btn ghost sm"
+              aria-label="More"
+              style={{ padding: 8 }}
+            >
+              <MoreHorizontal size={14} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function SignOutButton({
   variant = "ghost",
 }: {
-  variant?: "ghost" | "sidebar";
+  variant?: "ghost" | "sidebar" | "sidebar-icon";
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -16,6 +16,35 @@ export default function SignOutButton({
     const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = "/login";
+  }
+
+  if (variant === "sidebar-icon") {
+    // Compact icon-only button used inside the sidebar user row.
+    return (
+      <button
+        type="button"
+        onClick={handleSignOut}
+        disabled={loading}
+        title="Sign out"
+        style={{
+          padding: 6,
+          borderRadius: 8,
+          border: 0,
+          background: "transparent",
+          color: "var(--text-muted)",
+          cursor: "pointer",
+          opacity: loading ? 0.5 : 1,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        {loading ? (
+          <Loader2 size={15} className="animate-spin" />
+        ) : (
+          <LogOut size={15} />
+        )}
+      </button>
+    );
   }
 
   const cls =

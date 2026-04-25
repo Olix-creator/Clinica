@@ -1,19 +1,31 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import Sidebar from "@/components/layout/Sidebar";
-import Topbar from "@/components/layout/Topbar";
-import NotificationBell from "@/components/layout/NotificationBell";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
+import { createClient } from "@/lib/supabase/server";
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Dashboard chrome — Clinica handoff design.
+ *
+ * 240px fixed sidebar on the left, the page itself on the right.
+ * The page content provides its own DashTopbar so the title +
+ * subtitle stay tight to that page's data.
+ *
+ * On mobile we drop the sidebar and surface a compact branding bar
+ * + the existing bottom nav, since the handoff design is desktop-first.
+ */
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { profile } = await requireProfile();
 
-  // Staff (doctor / receptionist) get a "home clinic" chip in the sidebar.
+  // Staff (doctor / receptionist) get a "home clinic" chip + usage card.
   let homeClinic: { name: string; plan: string; role: string } | null = null;
+  let trial: { used: number; limit: number; planLabel: string } | null = null;
   if (profile.role !== "patient") {
     const clinics = await clinicMemberService.listClinicsForUser();
     if (clinics.length > 0) {
@@ -24,41 +36,77 @@ export default async function DashboardLayout({ children }: { children: React.Re
         plan: subscriptionService.label(sub?.plan ?? "free"),
         role: first.role,
       };
+
+      // Pull the live free-tier counters off the clinics row.
+      const supabase = await createClient();
+      const { data: c } = await supabase
+        .from("clinics")
+        .select("plan_type, monthly_appointments_count")
+        .eq("id", first.id)
+        .maybeSingle();
+      if (c) {
+        trial = {
+          used: c.monthly_appointments_count ?? 0,
+          limit: c.plan_type === "premium" ? 999 : 50,
+          planLabel: c.plan_type === "premium" ? "Premium" : "Free trial",
+        };
+      }
     }
   }
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface">
+    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <Sidebar
         role={profile.role}
         fullName={profile.full_name}
         email={profile.email}
         homeClinic={homeClinic}
+        trial={trial}
       />
 
-      {/* Mobile topbar (branding) — only shown on small screens */}
-      <div className="lg:hidden sticky top-0 z-40 bg-surface-container-low/90 backdrop-blur-xl border-b border-outline-variant/30">
-        <div className="flex items-center justify-between px-4 h-16">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-emerald">
-              <Sparkles className="w-4 h-4 text-on-primary-fixed" />
-            </span>
-            <span className="text-base font-semibold">Lumina</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <NotificationBell role={profile.role} />
-          </div>
-        </div>
+      {/* Mobile chrome */}
+      <div
+        className="lg:hidden"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          padding: "10px 16px",
+          background: "var(--surface-bright)",
+          borderBottom: "1px solid var(--outline-variant)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Link
+          href="/dashboard"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            color: "var(--on-surface)",
+            textDecoration: "none",
+          }}
+        >
+          <svg
+            width={20}
+            height={20}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            style={{ color: "var(--primary)" }}
+            aria-hidden
+          >
+            <path d="M12 2a7 7 0 0 0-7 7v6.2a4.8 4.8 0 1 0 2.4 0V9a4.6 4.6 0 1 1 9.2 0v.2a3.2 3.2 0 1 0 1.6 0V9a7 7 0 0 0-6.2-7Z" />
+            <circle cx="6.2" cy="18.8" r="2" />
+            <circle cx="18.2" cy="10.8" r="1.6" />
+          </svg>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>Clinica</span>
+        </Link>
       </div>
 
-      <div className="lg:pl-72">
-        {/* Desktop topbar */}
-        <div className="hidden lg:block">
-          <Topbar fullName={profile.full_name} email={profile.email} role={profile.role} />
-        </div>
-
-        <main className="px-4 sm:px-6 lg:px-10 py-8 pb-28 lg:pb-24">{children}</main>
+      <div className="lg:pl-[240px]">
+        <main style={{ minHeight: "calc(100vh - 56px)" }}>{children}</main>
       </div>
 
       <MobileBottomNav role={profile.role} />

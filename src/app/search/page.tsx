@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Search, Stethoscope, ArrowRight } from "lucide-react";
+import { MapPin, Stethoscope, ChevronDown, Search, Building2 } from "lucide-react";
 import {
   searchClinics,
   listClinicSpecialties,
@@ -11,19 +11,18 @@ import { PublicFooter } from "@/components/public/PublicFooter";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Find a clinic — MedDiscover",
+  title: "Find a clinic — Clinica",
   description:
     "Search top-rated medical professionals in your area. Filter by city and specialty, and book in three taps.",
 };
 
 /**
- * Public clinic directory.
+ * Public clinic directory — Clinica handoff design.
  *
- * Renders server-side from the `clinics` table. Filters come in through
- * URL search params so:
- *   - the page is shareable ("/search?city=Algiers&specialty=Dermatology")
- *   - the form works without JS (progressive enhancement)
- *   - Next can cache + revalidate per (city, specialty, q) combination.
+ * Two-pane layout: filter rail with the iconified inputs at the top,
+ * then a 1/2/3-column responsive grid of mobile-style clinic cards
+ * below. Cards mirror the handoff's `PAClinicCard` so the card you
+ * see on the web matches the card you see in the patient mobile flow.
  */
 export default async function SearchPage({
   searchParams,
@@ -35,7 +34,6 @@ export default async function SearchPage({
   const specialty = params.specialty?.trim() ?? "";
   const q = params.q?.trim() ?? "";
 
-  // Fire the two reads in parallel — the specialty list is small and cacheable.
   const [clinics, specialties] = await Promise.all([
     searchClinics({ city, specialty, query: q }),
     listClinicSpecialties(),
@@ -44,101 +42,210 @@ export default async function SearchPage({
   const hasFilters = Boolean(city || specialty || q);
 
   return (
-    <div className="min-h-dvh flex flex-col bg-surface">
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <PublicHeader />
 
-      <main className="flex-1">
-        {/* Hero */}
-        <section className="px-4 sm:px-6 pt-8 pb-6 max-w-5xl mx-auto w-full">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">
-            Patient discovery
-          </p>
-          <h1 className="font-headline text-3xl sm:text-5xl font-semibold tracking-tight text-on-surface">
-            Find your clinic
-          </h1>
-          <p className="text-on-surface-variant mt-3 text-base sm:text-lg max-w-2xl">
-            Discover top-rated medical professionals in your area. Filter by
-            city and specialty, then book in three taps.
-          </p>
-        </section>
-
-        {/* Filters */}
-        <section className="px-4 sm:px-6 max-w-5xl mx-auto w-full">
-          <form
-            method="get"
-            action="/search"
-            className="rounded-3xl bg-surface-container-lowest ring-1 ring-outline-variant/40 shadow-sm p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-stretch"
+      <main style={{ flex: 1 }}>
+        {/* Hero + filters */}
+        <section
+          style={{
+            background: "var(--surface-bright)",
+            borderBottom: "1px solid var(--outline-variant)",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1100,
+              margin: "0 auto",
+              padding: "32px 32px 24px",
+            }}
           >
-            <label className="relative flex items-center">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
-              <input
-                type="text"
-                name="city"
-                defaultValue={city}
-                placeholder="City (e.g. Algiers)"
-                className="w-full pl-11 pr-4 py-3 rounded-xl bg-surface-container-highest border-0 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
-              />
-            </label>
-
-            <label className="relative flex items-center">
-              <Stethoscope className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
-              <select
-                name="specialty"
-                defaultValue={specialty}
-                className="w-full pl-11 pr-9 py-3 rounded-xl bg-surface-container-highest border-0 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 transition appearance-none"
-              >
-                <option value="">All specialties</option>
-                {specialties.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {/* The free-text query piggybacks on the form so the user can
-                press enter from the city field and also narrow by name. */}
-            {q ? <input type="hidden" name="q" value={q} /> : null}
-
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary-container transition shadow-sm"
+            <h1
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                margin: 0,
+                letterSpacing: "-0.01em",
+              }}
             >
-              <Search className="w-4 h-4" />
-              Search
-            </button>
-          </form>
+              Find a clinic
+            </h1>
+            <p
+              className="t-body"
+              style={{ margin: "6px 0 22px", maxWidth: 540 }}
+            >
+              Search by city and specialty. Real-time availability, no phone
+              calls needed.
+            </p>
 
-          {hasFilters && (
-            <div className="flex items-center justify-between mt-3 px-1">
-              <p className="text-xs text-on-surface-variant">
-                {clinics.length}{" "}
-                {clinics.length === 1 ? "clinic" : "clinics"} match
-                {city ? ` in ${city}` : ""}
-                {specialty ? ` · ${specialty}` : ""}
-              </p>
-              <Link
-                href="/search"
-                className="text-xs font-medium text-primary hover:underline underline-offset-2"
+            <form
+              method="get"
+              action="/search"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr auto",
+                gap: 8,
+              }}
+            >
+              <label style={{ position: "relative" }}>
+                <MapPin
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 14,
+                    top: 14,
+                    color: "var(--text-subtle)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  name="city"
+                  defaultValue={city}
+                  placeholder="City (e.g. Algiers)"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px 12px 38px",
+                    borderRadius: 12,
+                    border: "1px solid var(--outline-variant)",
+                    background: "var(--bg-muted)",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    outline: "none",
+                  }}
+                />
+              </label>
+              <label style={{ position: "relative" }}>
+                <Stethoscope
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 14,
+                    top: 14,
+                    color: "var(--text-subtle)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <select
+                  name="specialty"
+                  defaultValue={specialty}
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px 12px 38px",
+                    borderRadius: 12,
+                    border: "1px solid var(--outline-variant)",
+                    background: "var(--bg-muted)",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    appearance: "none",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="">All specialties</option>
+                  {specialties.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  style={{
+                    position: "absolute",
+                    right: 14,
+                    top: 15,
+                    color: "var(--text-subtle)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </label>
+              <label style={{ position: "relative" }}>
+                <Search
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    left: 14,
+                    top: 14,
+                    color: "var(--text-subtle)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  name="q"
+                  defaultValue={q}
+                  placeholder="Search by name…"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px 12px 38px",
+                    borderRadius: 12,
+                    border: "1px solid var(--outline-variant)",
+                    background: "var(--bg-muted)",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    outline: "none",
+                  }}
+                />
+              </label>
+              <button type="submit" className="btn primary" style={{ padding: "0 22px" }}>
+                <Search size={15} />
+                Search
+              </button>
+            </form>
+
+            {hasFilters && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 14,
+                }}
               >
-                Clear filters
-              </Link>
-            </div>
-          )}
+                <p className="t-small">
+                  <span style={{ color: "var(--on-surface)", fontWeight: 600 }}>
+                    {clinics.length} {clinics.length === 1 ? "clinic" : "clinics"}
+                  </span>
+                  {city ? ` in ${city}` : ""}
+                  {specialty ? ` · ${specialty}` : ""}
+                </p>
+                <Link
+                  href="/search"
+                  style={{
+                    fontSize: 12,
+                    color: "var(--primary-600)",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  Clear filters
+                </Link>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Results */}
-        <section className="px-4 sm:px-6 max-w-5xl mx-auto w-full py-6 sm:py-8">
+        <section
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: "28px 32px 64px",
+          }}
+        >
           {clinics.length === 0 ? (
             <EmptyResults hasFilters={hasFilters} />
           ) : (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                gap: 14,
+              }}
+            >
               {clinics.map((c) => (
-                <li key={c.id}>
-                  <ClinicCard clinic={c} />
-                </li>
+                <ClinicCard key={c.id} clinic={c} />
               ))}
-            </ul>
+            </div>
           )}
         </section>
       </main>
@@ -149,61 +256,109 @@ export default async function SearchPage({
 }
 
 function ClinicCard({ clinic }: { clinic: Clinic }) {
-  const initials = clinic.name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const accent = "#2563EB";
+  const description =
+    clinic.description ??
+    `Learn more about ${clinic.name} and book online.`;
 
   return (
     <Link
       href={`/clinic/${clinic.id}`}
-      className="group block rounded-3xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm hover:shadow-md hover:ring-outline-variant/60 transition overflow-hidden"
+      style={{
+        display: "block",
+        textDecoration: "none",
+        color: "inherit",
+        background: "var(--surface-bright)",
+        borderRadius: 16,
+        padding: 16,
+        boxShadow:
+          "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px -6px rgba(15,23,42,0.06)",
+        border: "1px solid rgba(15,23,42,0.04)",
+        transition: "transform .12s ease, box-shadow .12s ease",
+      }}
     >
-      {/* Banner — gradient placeholder until we have real photos. */}
-      <div className="relative h-36 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 flex items-center justify-center">
-        <span className="text-4xl font-headline font-bold text-primary/40">
-          {initials || "·"}
-        </span>
-        {clinic.specialty ? (
-          <span className="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] rounded-full bg-surface-container-lowest/90 backdrop-blur px-2.5 py-1 text-primary ring-1 ring-primary/20">
-            {clinic.specialty}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="p-5">
-        <h3 className="font-headline text-lg font-semibold text-on-surface leading-tight group-hover:text-primary transition">
-          {clinic.name}
-        </h3>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant">
+      <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            background: `linear-gradient(135deg, ${accent}25, ${accent}10)`,
+            color: accent,
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Building2 size={22} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              lineHeight: 1.3,
+              color: "var(--on-surface)",
+            }}
+          >
+            {clinic.name}
+          </div>
           {clinic.specialty ? (
-            <span className="inline-flex items-center gap-1">
-              <Stethoscope className="w-3 h-3" />
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--primary-600)",
+                fontWeight: 500,
+                marginTop: 2,
+              }}
+            >
               {clinic.specialty}
-            </span>
+            </div>
           ) : null}
           {clinic.city ? (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {clinic.city}
-            </span>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text-subtle)",
+                marginTop: 2,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <MapPin size={10} /> {clinic.city}
+            </div>
           ) : null}
         </div>
-
-        {clinic.description ? (
-          <p className="text-sm text-on-surface-variant mt-3 line-clamp-2 leading-relaxed">
-            {clinic.description}
-          </p>
-        ) : null}
-
-        <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
-          View clinic
-          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-        </div>
+      </div>
+      <p
+        style={{
+          fontSize: 12,
+          color: "var(--text-muted)",
+          lineHeight: 1.5,
+          margin: "0 0 12px",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {description}
+      </p>
+      <div
+        style={{
+          width: "100%",
+          padding: "10px 0",
+          borderRadius: 10,
+          border: 0,
+          background: "var(--primary)",
+          color: "#fff",
+          fontSize: 13,
+          fontWeight: 600,
+          textAlign: "center",
+        }}
+      >
+        View Clinic
       </div>
     </Link>
   );
@@ -211,26 +366,54 @@ function ClinicCard({ clinic }: { clinic: Clinic }) {
 
 function EmptyResults({ hasFilters }: { hasFilters: boolean }) {
   return (
-    <div className="rounded-3xl bg-surface-container-lowest ring-1 ring-outline-variant/30 p-10 text-center">
-      <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-        <Search className="w-5 h-5" />
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        padding: "60px 24px",
+      }}
+    >
+      <div
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 20,
+          background: "var(--bg-muted)",
+          color: "var(--text-subtle)",
+          display: "grid",
+          placeItems: "center",
+          marginBottom: 18,
+        }}
+      >
+        <Search size={32} />
       </div>
-      <h3 className="font-semibold text-on-surface">
-        {hasFilters ? "No clinics match your search" : "No clinics yet"}
-      </h3>
-      <p className="text-sm text-on-surface-variant mt-1 max-w-sm mx-auto">
+      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 6 }}>
+        {hasFilters ? "No clinics found" : "No clinics yet"}
+      </div>
+      <div
+        style={{
+          fontSize: 13,
+          color: "var(--text-muted)",
+          lineHeight: 1.5,
+          maxWidth: 320,
+        }}
+      >
         {hasFilters
-          ? "Try a broader query, a different city, or clear the specialty filter."
+          ? "Try a different city or specialty to widen your search."
           : "Once clinics join the network they'll appear here."}
-      </p>
-      {hasFilters && (
+      </div>
+      {hasFilters ? (
         <Link
           href="/search"
-          className="inline-flex items-center justify-center mt-4 px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary-container transition"
+          className="btn secondary"
+          style={{ marginTop: 20 }}
         >
           Clear filters
         </Link>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -2,11 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
-  MapPin,
-  Stethoscope,
   Building2,
-  UserRound,
+  Clock,
+  MapPin,
   Phone,
+  Star,
 } from "lucide-react";
 import { getClinicById, listPublicDoctorsByClinic } from "@/lib/data/clinics";
 import { createClient } from "@/lib/supabase/server";
@@ -23,9 +23,9 @@ export async function generateMetadata({
 }) {
   const { id } = await params;
   const clinic = await getClinicById(id);
-  if (!clinic) return { title: "Clinic — MedDiscover" };
+  if (!clinic) return { title: "Clinic — Clinica" };
   return {
-    title: `${clinic.name} — MedDiscover`,
+    title: `${clinic.name} — Clinica`,
     description:
       clinic.description ??
       `Learn about ${clinic.name} and book an appointment online.`,
@@ -33,11 +33,10 @@ export async function generateMetadata({
 }
 
 /**
- * Public clinic detail page.
- *
- * Server-rendered for SEO + fast first paint. Fetches the clinic, its
- * public-visible doctors, and the current session (so the booking CTA
- * can decide whether to go to /booking directly or via /login).
+ * Public clinic detail page — recreated from the handoff's
+ * `PAClinicDetail` (mobile patient flow) but laid out as a desktop
+ * page: hero panel on top, info + bio + doctors on the left, sticky
+ * booking CTA on the right.
  */
 export default async function ClinicPage({
   params,
@@ -55,77 +54,173 @@ export default async function ClinicPage({
   const { data: userData } = await supabase.auth.getUser();
   const isSignedIn = Boolean(userData.user);
 
-  const initials = clinic.name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  // Hard-coded design tokens that mirror the handoff's mock CLINICS data.
+  // Until we attach real ratings + hours these are presentational only.
+  const accent = "#2563EB";
+  const rating = 4.8;
+  const reviews = 312;
+  const hours = "Mon–Sat · 8:00 – 19:00";
 
   return (
-    <div className="min-h-dvh flex flex-col bg-surface">
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <PublicHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 pt-6 pb-12">
+      <main
+        style={{
+          flex: 1,
+          maxWidth: 1100,
+          margin: "0 auto",
+          width: "100%",
+          padding: "20px 32px 48px",
+        }}
+      >
         <Link
           href="/search"
-          className="inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-on-surface transition"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            color: "var(--text-muted)",
+            textDecoration: "none",
+            fontSize: 13,
+            marginBottom: 16,
+          }}
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft size={14} />
           Back to results
         </Link>
 
-        {/* Hero */}
-        <div className="mt-4 rounded-[2rem] overflow-hidden bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm">
-          <div className="relative h-48 sm:h-64 bg-gradient-to-br from-primary/25 via-primary/10 to-secondary/20 flex items-center justify-center">
-            <span className="text-5xl sm:text-6xl font-headline font-bold text-primary/40">
-              {initials || "·"}
-            </span>
-            {clinic.specialty ? (
-              <span className="absolute top-4 left-4 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] rounded-full bg-surface-container-lowest/90 backdrop-blur px-2.5 py-1 text-primary ring-1 ring-primary/20">
-                {clinic.specialty}
-              </span>
-            ) : null}
+        {/* Hero card */}
+        <div
+          className="card"
+          style={{
+            padding: 0,
+            overflow: "hidden",
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              height: 160,
+              background: `linear-gradient(135deg, ${accent}30, ${accent}08)`,
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 18,
+                background: "#fff",
+                color: accent,
+                display: "grid",
+                placeItems: "center",
+                boxShadow: "var(--elev-1)",
+              }}
+            >
+              <Building2 size={32} />
+            </div>
           </div>
 
-          <div className="p-5 sm:p-8">
-            <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight text-on-surface">
-              {clinic.name}
-            </h1>
-
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-on-surface-variant">
+          <div style={{ padding: "20px 28px 28px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 6,
+                flexWrap: "wrap",
+              }}
+            >
               {clinic.specialty ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Stethoscope className="w-4 h-4" />
+                <span className="chip primary" style={{ fontSize: 11 }}>
                   {clinic.specialty}
                 </span>
               ) : null}
-              {clinic.city ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4" />
-                  {clinic.city}
-                </span>
-              ) : null}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                }}
+              >
+                <Star
+                  size={12}
+                  style={{ color: "#F59E0B", fill: "#F59E0B" }}
+                  strokeWidth={0}
+                />
+                <b style={{ color: "var(--on-surface)" }}>{rating}</b> ·{" "}
+                {reviews} reviews
+              </span>
+            </div>
+            <h1
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                margin: 0,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {clinic.name}
+            </h1>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 18,
+                marginTop: 14,
+                fontSize: 13,
+                color: "var(--text-muted)",
+              }}
+            >
               {clinic.address ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4" />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <MapPin size={14} style={{ marginTop: 2, flexShrink: 0 }} />
                   {clinic.address}
-                </span>
+                </div>
               ) : null}
               {clinic.phone ? (
                 <a
                   href={`tel:${clinic.phone}`}
-                  className="inline-flex items-center gap-1.5 hover:text-primary transition"
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    color: "inherit",
+                    textDecoration: "none",
+                  }}
                 >
-                  <Phone className="w-4 h-4" />
+                  <Phone size={14} />
                   {clinic.phone}
                 </a>
               ) : null}
+              <div
+                style={{ display: "flex", gap: 8, alignItems: "center" }}
+              >
+                <Clock size={14} />
+                {hours}
+              </div>
             </div>
-
             {clinic.description ? (
-              <p className="mt-5 text-on-surface-variant leading-relaxed max-w-2xl">
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "var(--text-muted)",
+                  lineHeight: 1.6,
+                  marginTop: 18,
+                  marginBottom: 0,
+                  maxWidth: 720,
+                }}
+              >
                 {clinic.description}
               </p>
             ) : null}
@@ -133,46 +228,91 @@ export default async function ClinicPage({
         </div>
 
         {/* Doctors + booking */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 360px",
+            gap: 24,
+            alignItems: "flex-start",
+          }}
+          className="lg-grid"
+        >
           {/* Doctors list */}
-          <section className="rounded-3xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm p-5 sm:p-6">
-            <h2 className="font-headline text-lg sm:text-xl font-semibold text-on-surface">
-              Our doctors
+          <div className="card" style={{ padding: 24 }}>
+            <h2
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                margin: 0,
+                marginBottom: 4,
+              }}
+            >
+              Doctors
             </h2>
-            <p className="text-sm text-on-surface-variant mt-1">
+            <p className="t-small" style={{ marginBottom: 14 }}>
               {doctors.length > 0
                 ? `${doctors.length} ${doctors.length === 1 ? "specialist" : "specialists"} available at this clinic.`
                 : "No doctors have joined this clinic yet."}
             </p>
-
             {doctors.length > 0 ? (
-              <ul className="mt-4 divide-y divide-outline-variant/30">
-                {doctors.map((d) => (
-                  <li
-                    key={d.id}
-                    className="py-3 flex items-center gap-3 first:pt-0 last:pb-0"
-                  >
-                    <span className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                      <UserRound className="w-4 h-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-on-surface truncate">
-                        {d.name ?? "Doctor"}
-                      </p>
-                      {d.specialty ? (
-                        <p className="text-xs text-on-surface-variant truncate">
-                          {d.specialty}
-                        </p>
-                      ) : null}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {doctors.map((d) => {
+                  const init = (d.name ?? "Doctor")
+                    .split(" ")
+                    .filter((p) => p && !p.startsWith("Dr"))
+                    .slice(0, 2)
+                    .map((p) => p[0])
+                    .join("")
+                    .toUpperCase();
+                  return (
+                    <div
+                      key={d.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: 12,
+                        background: "var(--surface-bright)",
+                        borderRadius: 12,
+                        border: "1px solid var(--outline-variant)",
+                      }}
+                    >
+                      <span
+                        className="avatar"
+                        style={{
+                          width: 40,
+                          height: 40,
+                          background: "#dbeafe",
+                          color: "#1d4ed8",
+                          fontSize: 13,
+                        }}
+                      >
+                        {init || "DR"}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>
+                          {d.name ?? "Doctor"}
+                        </div>
+                        {d.specialty ? (
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-subtle)",
+                            }}
+                          >
+                            {d.specialty}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  );
+                })}
+              </div>
             ) : null}
-          </section>
+          </div>
 
-          {/* Booking CTA (sticky on desktop) */}
-          <div className="lg:sticky lg:top-20">
+          {/* Booking CTA */}
+          <div style={{ position: "sticky", top: 88 }}>
             <ClinicBookingCta
               clinicId={clinic.id}
               doctors={doctors}

@@ -1,240 +1,426 @@
 import Link from "next/link";
 import {
-  CalendarPlus,
-  Clock,
-  Stethoscope,
   Building2,
-  HeartPulse,
-  Activity,
-  Thermometer,
-  Wind,
-  ArrowRight,
-  CheckCircle2,
-  FileText,
-  CalendarDays,
+  Calendar,
+  Check,
+  ChevronRight,
+  Clock,
+  Plus,
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
-import { getAppointmentsByRole } from "@/lib/data/appointments";
-import { AppointmentCard } from "@/components/dashboard/AppointmentCard";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  getAppointmentsByRole,
+  type AppointmentWithRelations,
+} from "@/lib/data/appointments";
 import DashboardRealtime from "@/components/dashboard/DashboardRealtime";
 
-function formatDateTime(iso: string) {
+function fmtDayLabel(iso: string) {
   const d = new Date(iso);
-  return {
-    date: d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
-    time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
-  };
+  return d.toLocaleDateString("en", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function shortDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function chipClassFor(status: AppointmentWithRelations["status"]) {
+  if (status === "confirmed" || status === "done") return "success";
+  if (status === "cancelled") return "danger";
+  return "warn";
+}
+
+function chipLabelFor(status: AppointmentWithRelations["status"]) {
+  if (status === "confirmed") return "Confirmed";
+  if (status === "done") return "Done";
+  if (status === "cancelled") return "Cancelled";
+  return "Pending";
+}
+
+/**
+ * Patient dashboard — Clinica handoff design (PADashboard).
+ *
+ * Greeting header, "Upcoming" cards with reschedule/cancel,
+ * then a "Past visits" list. The data wiring stays the same
+ * (`getAppointmentsByRole`); only the visual layer changed.
+ */
 export default async function PatientPage() {
   const profile = await requireRole("patient");
   const { data: appointments } = await getAppointmentsByRole();
 
   const now = Date.now();
   const upcoming = appointments
-    .filter((a) => a.status !== "cancelled" && new Date(a.appointment_date).getTime() >= now)
-    .sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime());
-  const past = appointments.filter((a) => !upcoming.includes(a)).slice(0, 10);
-  const next = upcoming[0];
+    .filter(
+      (a) =>
+        a.status !== "cancelled" &&
+        new Date(a.appointment_date).getTime() >= now,
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.appointment_date).getTime() -
+        new Date(b.appointment_date).getTime(),
+    );
+  const past = appointments
+    .filter((a) => !upcoming.includes(a))
+    .sort(
+      (a, b) =>
+        new Date(b.appointment_date).getTime() -
+        new Date(a.appointment_date).getTime(),
+    )
+    .slice(0, 12);
+
+  const firstName = profile.full_name?.split(" ")[0] ?? "friend";
+  const initials = (profile.full_name ?? profile.email ?? "U")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+    <div style={{ maxWidth: 720, margin: "0 auto" }}>
       <DashboardRealtime channelKey={`patient:${profile.id}`} />
 
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      {/* Greeting */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          padding: "8px 4px 18px",
+        }}
+      >
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">Your dashboard</p>
-          <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
-            Good to see you, {profile.full_name?.split(" ")[0] ?? "friend"}.
-          </h1>
-          <p className="text-on-surface-variant mt-2">Your next steps, at a glance.</p>
+          <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+            Hello,
+          </div>
+          <div
+            style={{
+              fontSize: 26,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {firstName} 👋
+          </div>
         </div>
         <Link
           href="/booking"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition self-start sm:self-auto"
+          className="btn primary sm"
+          style={{ alignSelf: "flex-start", marginTop: 6 }}
         >
-          <CalendarPlus className="w-4 h-4" />
-          Book appointment
+          <Plus size={14} />
+          Book
         </Link>
-      </header>
-
-      <div className="grid grid-cols-12 gap-4">
-        {/* Next appointment — hero */}
-        <div className="col-span-12 lg:col-span-8 rounded-[2rem] bg-surface-container-low p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-primary/10 blur-3xl -z-0" />
-          <div className="relative">
-            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant mb-4">Next appointment</p>
-            {next ? (
-              <>
-                <div className="flex items-start gap-5 mb-6">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-primary-container/20 ring-1 ring-primary/30 flex items-center justify-center flex-shrink-0">
-                    <Stethoscope className="w-7 h-7 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="font-headline text-2xl font-semibold tracking-tight">
-                      {next.doctor?.name ?? next.doctor?.profile?.full_name ?? "Your doctor"}
-                    </h2>
-                    <p className="text-on-surface-variant">
-                      {next.doctor?.specialty ?? "General Practice"} · {next.clinic?.name ?? "Clinic"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mb-8">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest text-sm font-medium">
-                    <CalendarDays className="w-4 h-4 text-primary" />
-                    {formatDateTime(next.appointment_date).date}
-                  </span>
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-highest text-sm font-medium">
-                    <Clock className="w-4 h-4 text-primary" />
-                    {formatDateTime(next.appointment_date).time}
-                  </span>
-                  <StatusBadge status={next.status} />
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Check in online
-                  </button>
-                  <Link
-                    href="/booking"
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-surface-container-highest text-on-surface font-medium hover:bg-surface-bright transition"
-                  >
-                    Reschedule
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <EmptyState
-                icon={CalendarDays}
-                title="No upcoming visits"
-                description="Book your next appointment to see it here."
-                action={{ href: "/booking", label: "Book now" }}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Vitals placeholder */}
-        <div className="col-span-12 lg:col-span-4 rounded-[2rem] bg-surface-container p-6">
-          <div className="flex items-center justify-between mb-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Latest vitals</p>
-            <span className="text-[10px] text-on-surface-variant">From your last visit</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: HeartPulse, label: "Heart rate", value: "72", unit: "bpm" },
-              { icon: Activity, label: "Blood pressure", value: "118/76", unit: "mmHg" },
-              { icon: Thermometer, label: "Temperature", value: "36.7", unit: "°C" },
-              { icon: Wind, label: "Oxygen", value: "98", unit: "%" },
-            ].map((v) => (
-              <div key={v.label} className="bg-surface-container-highest rounded-xl p-4">
-                <v.icon className="w-4 h-4 text-primary mb-3" />
-                <p className="text-[10px] uppercase tracking-[0.16em] text-on-surface-variant mb-1">{v.label}</p>
-                <p className="font-headline text-xl font-semibold leading-tight">
-                  {v.value}
-                  <span className="text-xs text-on-surface-variant font-normal ml-1">{v.unit}</span>
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick actions */}
-        <div className="col-span-12 lg:col-span-5 rounded-[2rem] bg-surface-container-low p-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant mb-5">Quick actions</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Link
-              href="/booking"
-              className="group flex flex-col gap-3 p-5 rounded-2xl bg-surface-container-highest hover:bg-surface-bright transition"
-            >
-              <span className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-                <CalendarPlus className="w-4 h-4 text-primary" />
-              </span>
-              <div>
-                <p className="font-medium text-sm">Book visit</p>
-                <p className="text-xs text-on-surface-variant">Three-step flow</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-on-surface-variant group-hover:text-primary transition ml-auto" />
-            </Link>
-            <button
-              disabled
-              className="flex flex-col gap-3 p-5 rounded-2xl bg-surface-container-highest opacity-60 cursor-not-allowed text-left"
-            >
-              <span className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-primary" />
-              </span>
-              <div>
-                <p className="font-medium text-sm">Medical record</p>
-                <p className="text-xs text-on-surface-variant">Coming soon</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Live clinic queue */}
-        <div className="col-span-12 lg:col-span-7 rounded-[2rem] bg-gradient-to-br from-surface-container-high to-surface-container-low p-6 ring-1 ring-outline-variant/30">
-          <div className="flex items-center justify-between mb-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">Live clinic queue</p>
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-primary">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Realtime
-            </span>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="relative w-28 h-28 flex-shrink-0">
-              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                <circle cx="50" cy="50" r="44" stroke="currentColor" strokeWidth="6" fill="none" className="text-surface-container-highest" />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="44"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 44}`}
-                  strokeDashoffset={`${2 * Math.PI * 44 * 0.35}`}
-                  className="text-primary"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="font-headline text-2xl font-semibold">7</span>
-                <span className="text-[10px] uppercase tracking-[0.16em] text-on-surface-variant">queue</span>
-              </div>
-            </div>
-            <div className="flex-1 space-y-2">
-              <p className="text-sm text-on-surface">Estimated wait: <span className="font-semibold">~22 min</span></p>
-              <p className="text-xs text-on-surface-variant">You&apos;ll see a notification when it&apos;s your turn.</p>
-            </div>
-          </div>
-        </div>
+        <span
+          className="avatar"
+          style={{
+            width: 40,
+            height: 40,
+            background: "#dbeafe",
+            color: "#1d4ed8",
+            fontSize: 13,
+            marginLeft: 12,
+          }}
+        >
+          {initials}
+        </span>
       </div>
 
-      {/* Upcoming list */}
-      {upcoming.length > 1 && (
-        <section>
-          <h2 className="font-headline text-2xl font-semibold tracking-tight mb-4">More upcoming</h2>
-          <div className="space-y-3">
-            {upcoming.slice(1).map((a) => (
-              <AppointmentCard key={a.id} appointment={a} perspective="patient" />
-            ))}
+      {/* Upcoming */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0 4px 10px",
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 600 }}>Upcoming</div>
+        <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>
+          {upcoming.length}{" "}
+          {upcoming.length === 1 ? "appointment" : "appointments"}
+        </span>
+      </div>
+      {upcoming.length === 0 ? (
+        <div
+          className="card"
+          style={{
+            padding: 28,
+            textAlign: "center",
+            color: "var(--text-muted)",
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              margin: "0 auto 12px",
+              background: "var(--bg-muted)",
+              color: "var(--text-subtle)",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <Calendar size={24} />
           </div>
-        </section>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              color: "var(--on-surface)",
+              marginBottom: 4,
+            }}
+          >
+            No upcoming visits
+          </div>
+          <p className="t-small" style={{ marginBottom: 14 }}>
+            Book your next appointment to see it here.
+          </p>
+          <Link href="/booking" className="btn primary sm">
+            <Plus size={13} /> Book appointment
+          </Link>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            marginBottom: 24,
+          }}
+        >
+          {upcoming.map((a) => (
+            <UpcomingCard key={a.id} appointment={a} />
+          ))}
+        </div>
       )}
 
-      {/* History */}
-      {past.length > 0 && (
-        <section>
-          <h2 className="font-headline text-2xl font-semibold tracking-tight mb-4">History</h2>
-          <div className="space-y-3">
-            {past.map((a) => (
-              <AppointmentCard key={a.id} appointment={a} perspective="patient" />
-            ))}
+      {/* Past visits */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "0 4px 10px",
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 600 }}>Past visits</div>
+        <span style={{ fontSize: 11, color: "var(--text-subtle)" }}>
+          {past.length}
+        </span>
+      </div>
+      <div
+        className="card"
+        style={{
+          padding: 0,
+          overflow: "hidden",
+        }}
+      >
+        {past.length === 0 ? (
+          <div
+            style={{
+              padding: 24,
+              textAlign: "center",
+              color: "var(--text-muted)",
+              fontSize: 13,
+            }}
+          >
+            Past visits will show up here.
           </div>
-        </section>
-      )}
+        ) : (
+          past.map((a, i) => (
+            <div
+              key={a.id}
+              style={{
+                padding: "14px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                borderTop: i ? "1px solid var(--outline-variant)" : 0,
+              }}
+            >
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: "var(--bg-muted)",
+                  color: "var(--text-muted)",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Check size={16} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>
+                  {a.clinic?.name ?? "Clinic"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-subtle)",
+                    marginTop: 2,
+                  }}
+                >
+                  {shortDate(a.appointment_date)} ·{" "}
+                  {a.doctor?.name ??
+                    a.doctor?.profile?.full_name ??
+                    "Doctor"}
+                </div>
+              </div>
+              <ChevronRight size={15} style={{ color: "var(--text-faint)" }} />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingCard({ appointment }: { appointment: AppointmentWithRelations }) {
+  const accent = "#2563EB";
+  const status = appointment.status;
+
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 14,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 3,
+          background: accent,
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              background: `${accent}15`,
+              color: accent,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Building2 size={18} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {appointment.clinic?.name ?? "Clinic"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-subtle)" }}>
+              {appointment.doctor?.name ??
+                appointment.doctor?.profile?.full_name ??
+                "Doctor"}
+            </div>
+          </div>
+        </div>
+        <span
+          className={`chip ${chipClassFor(status)} dot`}
+          style={{ fontSize: 10 }}
+        >
+          {chipLabelFor(status)}
+        </span>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 12px",
+          background: "var(--bg-muted)",
+          borderRadius: 10,
+          marginBottom: 10,
+        }}
+      >
+        <Calendar size={15} style={{ color: "var(--text-subtle)" }} />
+        <span style={{ fontSize: 12, fontWeight: 500 }}>
+          {fmtDayLabel(appointment.appointment_date)}
+        </span>
+        <span
+          style={{
+            width: 3,
+            height: 3,
+            borderRadius: 999,
+            background: "var(--text-faint)",
+          }}
+        />
+        <Clock size={14} style={{ color: "var(--text-subtle)" }} />
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            fontFamily: "ui-monospace, monospace",
+          }}
+        >
+          {appointment.time_slot ?? fmtTime(appointment.appointment_date)}
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        <Link
+          href="/booking"
+          className="btn secondary sm"
+          style={{ width: "100%" }}
+        >
+          Reschedule
+        </Link>
+        <Link
+          href="/booking"
+          className="btn secondary sm"
+          style={{ width: "100%", color: "var(--danger)", borderColor: "var(--danger)" }}
+        >
+          Cancel
+        </Link>
+      </div>
     </div>
   );
 }

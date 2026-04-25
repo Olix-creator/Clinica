@@ -47,6 +47,10 @@ export default function LoginPage() {
   const next = safeNext(
     searchParams.get("redirect") ?? searchParams.get("next"),
   );
+  const signupHref =
+    next && next !== "/dashboard"
+      ? `/signup?redirect=${encodeURIComponent(next)}`
+      : "/signup";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -197,7 +201,7 @@ export default function LoginPage() {
       <div className="t-small" style={{ marginTop: 22, textAlign: "center" }}>
         Don&apos;t have an account?{" "}
         <Link
-          href="/signup"
+          href={signupHref}
           style={{ color: "var(--primary-600)", fontWeight: 500 }}
         >
           Sign up

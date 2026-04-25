@@ -199,11 +199,14 @@ function Hero() {
             and let your team run the day from a single dashboard.
           </p>
           <div style={{ display: "flex", gap: 12, marginTop: 32, flexWrap: "wrap" }}>
-            <Link href="/pricing?onboarding=1" className="btn primary lg">
-              Create your clinic <ArrowRight size={16} />
+            <Link href="/booking" className="btn primary lg">
+              Book appointment <ArrowRight size={16} />
             </Link>
             <Link href="/search" className="btn secondary lg">
               Find a clinic
+            </Link>
+            <Link href="/pricing?onboarding=1" className="btn ghost lg">
+              I run a clinic
             </Link>
           </div>
           <div

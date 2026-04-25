@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   User,
   Stethoscope,
@@ -49,8 +49,24 @@ function GoogleIcon() {
   );
 }
 
+function safeNext(raw: string | null | undefined): string {
+  if (!raw) return "/dashboard";
+  if (!raw.startsWith("/")) return "/dashboard";
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/dashboard";
+  return raw;
+}
+
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = safeNext(
+    searchParams.get("redirect") ?? searchParams.get("next"),
+  );
+  const loginHref =
+    next && next !== "/dashboard"
+      ? `/login?redirect=${encodeURIComponent(next)}`
+      : "/login";
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -95,7 +111,7 @@ export default function SignupPage() {
     }
 
     if (data.session) {
-      router.push("/dashboard");
+      router.push(next);
       router.refresh();
     } else {
       setEmailConfirmSent(true);
@@ -129,7 +145,7 @@ export default function SignupPage() {
           . Confirm it to finish setting up your account.
         </p>
         <Link
-          href="/login"
+          href={loginHref}
           className="btn primary"
           style={{ padding: "12px 18px" }}
         >
@@ -341,7 +357,7 @@ export default function SignupPage() {
       <div className="t-small" style={{ marginTop: 22, textAlign: "center" }}>
         Already have an account?{" "}
         <Link
-          href="/login"
+          href={loginHref}
           style={{ color: "var(--primary-600)", fontWeight: 500 }}
         >
           Sign in

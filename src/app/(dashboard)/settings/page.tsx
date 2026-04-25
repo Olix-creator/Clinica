@@ -19,6 +19,7 @@ import {
   ClinicProfileEditor,
   type EditableClinic,
 } from "@/components/settings/ClinicProfileEditor";
+import { DashTopbar } from "@/components/layout/DashTopbar";
 import SignOutButton from "@/components/layout/SignOutButton";
 
 export const dynamic = "force-dynamic";
@@ -109,18 +110,12 @@ export default async function SettingsPage() {
     .toUpperCase();
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">
-          Settings
-        </p>
-        <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">
-          Workspace settings
-        </h1>
-        <p className="text-on-surface-variant mt-2">
-          Account, memberships, and clinic controls in one place.
-        </p>
-      </header>
+    <>
+      <DashTopbar
+        title="Settings"
+        subtitle="Clinic profile, hours, and team"
+      />
+      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in" style={{ padding: "24px 32px 60px" }}>
 
       {/* Account card */}
       <section className="bg-surface-container-low rounded-3xl p-6 sm:p-8 space-y-6">
@@ -254,6 +249,7 @@ export default async function SettingsPage() {
         <SignOutButton />
       </section>
     </div>
+    </>
   );
 }
 

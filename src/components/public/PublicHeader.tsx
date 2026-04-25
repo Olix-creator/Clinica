@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { Stethoscope } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Header for the public (unauthenticated) discovery pages.
+ * Public header — Clinica handoff design.
  *
- * If the visitor happens to already have a session we show a "Dashboard"
- * link back into the app; otherwise we surface the sign-in / sign-up
- * CTAs so they can book. Kept tiny and server-rendered so the first
- * paint stays fast on mobile.
+ * Sticky, glass background, brand on the left, nav links + auth CTAs
+ * on the right. Mirrors `pages/landing.jsx → TopNav` from the handoff
+ * but adapts the buttons to a real auth state.
  */
 export async function PublicHeader() {
   const supabase = await createClient();
@@ -16,51 +15,98 @@ export async function PublicHeader() {
   const isSignedIn = Boolean(data.user);
 
   return (
-    <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <div
+      className="glass"
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 40,
+        borderBottom: "1px solid var(--outline-variant)",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "14px 32px",
+          display: "flex",
+          alignItems: "center",
+          gap: 24,
+        }}
+      >
         <Link
           href="/"
-          className="inline-flex items-center gap-2 font-headline font-bold text-on-surface"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            color: "var(--on-surface)",
+            textDecoration: "none",
+          }}
         >
-          <span className="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center">
-            <Stethoscope className="w-4 h-4" />
+          <svg
+            width={22}
+            height={22}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            style={{ color: "var(--primary)" }}
+            aria-hidden
+          >
+            <path d="M12 2a7 7 0 0 0-7 7v6.2a4.8 4.8 0 1 0 2.4 0V9a4.6 4.6 0 1 1 9.2 0v.2a3.2 3.2 0 1 0 1.6 0V9a7 7 0 0 0-6.2-7Z" />
+            <circle cx="6.2" cy="18.8" r="2" />
+            <circle cx="18.2" cy="10.8" r="1.6" />
+          </svg>
+          <span style={{ fontWeight: 600, fontSize: 17, letterSpacing: "-0.01em" }}>
+            Clinica
           </span>
-          <span className="text-base tracking-tight">MedDiscover</span>
         </Link>
 
-        <nav className="flex items-center gap-2">
+        <nav
+          style={{ display: "flex", gap: 26, flex: 1 }}
+          className="hidden md:flex"
+        >
           <Link
             href="/search"
-            className="hidden sm:inline-flex px-3 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition"
+            style={{
+              color: "var(--text-muted)",
+              fontSize: 14,
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
           >
-            Discover
+            Find a clinic
           </Link>
-
-          {isSignedIn ? (
-            <Link
-              href="/dashboard"
-              className="inline-flex px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary-container transition shadow-sm"
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="hidden sm:inline-flex px-3 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex px-4 py-2 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:bg-primary-container transition shadow-sm"
-              >
-                Get started
-              </Link>
-            </>
-          )}
+          <Link
+            href="/pricing"
+            style={{
+              color: "var(--text-muted)",
+              fontSize: 14,
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            Pricing
+          </Link>
         </nav>
+
+        {isSignedIn ? (
+          <Link href="/dashboard" className="btn primary">
+            Dashboard <ArrowRight size={15} />
+          </Link>
+        ) : (
+          <>
+            <Link href="/login" className="btn ghost">
+              Sign in
+            </Link>
+            <Link href="/search" className="btn secondary">
+              Find a clinic
+            </Link>
+            <Link href="/pricing?onboarding=1" className="btn primary">
+              Create clinic <ArrowRight size={15} />
+            </Link>
+          </>
+        )}
       </div>
-    </header>
+    </div>
   );
 }

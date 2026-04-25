@@ -50,9 +50,10 @@ export function PremiumEnquiryButton({
   return (
     <a
       href={buildHref()}
-      className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed text-sm font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition"
+      className="btn primary"
+      style={{ width: "100%", padding: "12px 16px" }}
     >
-      <Crown className="w-4 h-4" />
+      <Crown size={16} />
       {label}
     </a>
   );

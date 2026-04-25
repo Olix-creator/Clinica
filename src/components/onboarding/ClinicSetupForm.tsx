@@ -3,38 +3,81 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import {
-  Building2,
-  ClipboardList,
-  Loader2,
-  MapPin,
-  Phone,
-  Stethoscope,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { createClinicOnboardingAction } from "@/app/onboarding/clinic/actions";
 
-const INPUT =
-  "w-full rounded-xl bg-surface-container-highest border-0 px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-2 focus:ring-primary/40 transition disabled:opacity-60";
+const SPECIALTIES = [
+  "General Practice",
+  "Cardiology",
+  "Dermatology",
+  "Pediatrics",
+  "Dentistry",
+  "Ophthalmology",
+  "Gynecology",
+  "Orthopedics",
+  "Psychiatry",
+  "ENT",
+];
+
+const CITIES = ["Algiers", "Oran", "Constantine", "Annaba", "Blida", "Setif"];
+
+const STEPS = ["Choose plan", "Clinic info", "Review"] as const;
+
+type FormState = {
+  name: string;
+  specialty: string;
+  city: string;
+  address: string;
+  phone: string;
+  bio: string;
+};
 
 /**
- * Client form for /onboarding/clinic.
+ * 3-step onboarding wizard, mirroring the handoff design exactly:
+ *   1. Choose plan (free / premium radio cards)
+ *   2. Clinic info (name, specialty, city, address, phone, bio)
+ *   3. Review summary then submit to the server action
  *
- * We keep this component dumb — it only collects text, calls the
- * server action, and routes on success. All validation/inserts
- * happen server-side so a curl bypass doesn't skip the verification
- * requirements.
+ * Only step 3's "Go to dashboard" actually inserts the row — that
+ * matches the handoff's "Step 3 = review then submit" pattern.
  */
-export function ClinicSetupForm({ plan }: { plan: "free" | "premium" }) {
+export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium" }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [step, setStep] = useState(0);
+  const [plan, setPlan] = useState<"free" | "premium">(initialPlan);
   const [error, setError] = useState("");
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    specialty: "General Practice",
+    city: "Algiers",
+    address: "",
+    phone: "",
+    bio: "",
+  });
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const fd = new FormData(form);
-    fd.set("plan", plan);
+  function update<K extends keyof FormState>(k: K, v: FormState[K]) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  const canNext =
+    step === 0
+      ? true
+      : step === 1
+        ? form.name.trim() && form.address.trim() && form.phone.trim()
+        : true;
+
+  function submit() {
     setError("");
+    const fd = new FormData();
+    fd.set("name", form.name);
+    fd.set("phone", form.phone);
+    fd.set("address", form.address);
+    fd.set("specialty", form.specialty);
+    fd.set("city", form.city);
+    fd.set("description", form.bio);
+    fd.set("plan", plan);
+
     startTransition(async () => {
       const res = await createClinicOnboardingAction(fd);
       if (!res.ok) {
@@ -42,137 +85,324 @@ export function ClinicSetupForm({ plan }: { plan: "free" | "premium" }) {
         toast.error(res.error);
         return;
       }
-      toast.success(
-        "Clinic submitted for verification. Your 30-day trial starts now.",
-      );
+      toast.success("Clinic created — welcome!");
       router.push("/dashboard");
       router.refresh();
     });
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
+    <>
+      <div style={{ fontSize: 13, color: "var(--text-subtle)", marginBottom: 14 }}>
+        Step {step + 1} of {STEPS.length}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 40 }}>
+        {STEPS.map((s, i) => (
+          <div key={s} style={{ flex: 1 }}>
+            <div
+              style={{
+                height: 4,
+                borderRadius: 999,
+                background:
+                  i <= step ? "var(--primary)" : "var(--outline-variant)",
+                transition: "background .2s",
+              }}
+            />
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 12,
+                fontWeight: i === step ? 600 : 500,
+                color:
+                  i <= step ? "var(--on-surface)" : "var(--text-subtle)",
+              }}
+            >
+              {i + 1}. {s}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {error ? (
-        <div className="px-4 py-3 rounded-xl bg-error-container/30 border border-error/30 text-sm text-error">
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #fecaca",
+            background: "var(--danger-50)",
+            color: "var(--danger)",
+            fontSize: 13,
+          }}
+        >
           {error}
         </div>
       ) : null}
 
-      <div className="space-y-1.5">
-        <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant font-semibold">
-          Clinic name <span className="text-error">*</span>
-        </label>
-        <div className="relative">
-          <Building2 className="w-4 h-4 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            name="name"
-            required
-            placeholder="e.g. Clinique Al Amal"
-            className={`${INPUT} pl-11`}
-            disabled={pending}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant font-semibold">
-            Phone <span className="text-error">*</span>
-          </label>
-          <div className="relative">
-            <Phone className="w-4 h-4 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              name="phone"
-              required
-              type="tel"
-              placeholder="+213 …"
-              className={`${INPUT} pl-11`}
-              disabled={pending}
-            />
+      {/* Step 0: plan */}
+      {step === 0 && (
+        <div className="anim-fade">
+          <h1 className="t-h2" style={{ marginBottom: 8 }}>
+            Start free or go premium.
+          </h1>
+          <p className="t-body" style={{ marginBottom: 32 }}>
+            Both unlock the full product. Premium removes limits.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {[
+              { v: "free" as const, t: "Free trial", p: "€0", d: "30 days or 50 appointments" },
+              { v: "premium" as const, t: "Premium", p: "€12/mo", d: "Unlimited everything" },
+            ].map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                onClick={() => setPlan(o.v)}
+                style={{
+                  textAlign: "left",
+                  padding: 24,
+                  borderRadius: 14,
+                  cursor: "pointer",
+                  background: "var(--surface-bright)",
+                  border:
+                    plan === o.v
+                      ? "1.5px solid var(--primary)"
+                      : "1px solid var(--outline-variant)",
+                  boxShadow:
+                    plan === o.v ? "0 0 0 3px var(--primary-tint)" : "none",
+                  transition: "all .12s ease",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{o.t}</div>
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 999,
+                      border: "1.5px solid",
+                      borderColor:
+                        plan === o.v ? "var(--primary)" : "var(--border-strong)",
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    {plan === o.v && (
+                      <div
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: 999,
+                          background: "var(--primary)",
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 600, marginTop: 10 }}>
+                  {o.p}
+                </div>
+                <div className="t-small" style={{ marginTop: 4 }}>
+                  {o.d}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        <div className="space-y-1.5">
-          <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant font-semibold">
-            City
-          </label>
-          <div className="relative">
-            <MapPin className="w-4 h-4 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              name="city"
-              placeholder="e.g. Algiers"
-              className={`${INPUT} pl-11`}
-              disabled={pending}
-            />
+      {/* Step 1: clinic info */}
+      {step === 1 && (
+        <div className="anim-fade">
+          <h1 className="t-h2" style={{ marginBottom: 8 }}>
+            Tell us about your clinic.
+          </h1>
+          <p className="t-body" style={{ marginBottom: 32 }}>
+            This is what patients will see on your public page.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label className="field-label">Clinic name</label>
+              <input
+                className="input"
+                value={form.name}
+                onChange={(e) => update("name", e.target.value)}
+                placeholder="e.g. Clinique El Djazair"
+              />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div>
+                <label className="field-label">Specialty</label>
+                <select
+                  className="select"
+                  value={form.specialty}
+                  onChange={(e) => update("specialty", e.target.value)}
+                >
+                  {SPECIALTIES.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="field-label">City</label>
+                <select
+                  className="select"
+                  value={form.city}
+                  onChange={(e) => update("city", e.target.value)}
+                >
+                  {CITIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="field-label">Address</label>
+              <input
+                className="input"
+                value={form.address}
+                onChange={(e) => update("address", e.target.value)}
+                placeholder="Street, district"
+              />
+            </div>
+            <div>
+              <label className="field-label">Phone</label>
+              <input
+                className="input"
+                value={form.phone}
+                onChange={(e) => update("phone", e.target.value)}
+                placeholder="+213 21 00 00 00"
+              />
+            </div>
+            <div>
+              <label className="field-label">Short description</label>
+              <textarea
+                className="textarea"
+                rows={4}
+                value={form.bio}
+                onChange={(e) => update("bio", e.target.value)}
+                placeholder="What makes your clinic a good choice for patients?"
+              />
+              <div className="field-hint">
+                A sentence or two. Shown on your public clinic page.
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-1.5">
-        <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant font-semibold">
-          Address <span className="text-error">*</span>
-        </label>
-        <div className="relative">
-          <MapPin className="w-4 h-4 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            name="address"
-            required
-            placeholder="Street, number, district"
-            className={`${INPUT} pl-11`}
-            disabled={pending}
-          />
+      {/* Step 2: review */}
+      {step === 2 && (
+        <div className="anim-fade">
+          <h1 className="t-h2" style={{ marginBottom: 8 }}>
+            You&apos;re all set.
+          </h1>
+          <p className="t-body" style={{ marginBottom: 32 }}>
+            Review the details below. You can change anything from Settings.
+          </p>
+          <div className="card" style={{ padding: 24 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 18,
+              }}
+            >
+              <span className="chip primary">
+                {plan === "premium" ? "Premium" : "Free trial"}
+              </span>
+              <span className="chip warn">Verification pending</span>
+            </div>
+            {(
+              [
+                ["Clinic", form.name || "—"],
+                ["Specialty", form.specialty],
+                ["City", form.city],
+                ["Address", form.address || "—"],
+                ["Phone", form.phone || "—"],
+                ["Description", form.bio || "Not set"],
+              ] as [string, string][]
+            ).map(([k, v]) => (
+              <div
+                key={k}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "140px 1fr",
+                  gap: 12,
+                  padding: "12px 0",
+                  borderTop: "1px solid var(--outline-variant)",
+                  fontSize: 14,
+                }}
+              >
+                <div style={{ color: "var(--text-subtle)" }}>{k}</div>
+                <div
+                  style={{
+                    color:
+                      v === "—" || v === "Not set"
+                        ? "var(--text-faint)"
+                        : "var(--on-surface)",
+                  }}
+                >
+                  {v}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="t-small" style={{ marginTop: 20, lineHeight: 1.6 }}>
+            We&apos;ll review your clinic within 24 hours. Until then, you can
+            set up your schedule and add doctors — patients will see you once
+            approved.
+          </p>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-1.5">
-        <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant font-semibold">
-          Specialty
-        </label>
-        <div className="relative">
-          <Stethoscope className="w-4 h-4 text-on-surface-variant absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            name="specialty"
-            placeholder="e.g. Cardiology, General Medicine"
-            className={`${INPUT} pl-11`}
-            disabled={pending}
-          />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant font-semibold">
-          Description
-        </label>
-        <div className="relative">
-          <ClipboardList className="w-4 h-4 text-on-surface-variant absolute left-4 top-4 pointer-events-none" />
-          <textarea
-            name="description"
-            rows={4}
-            placeholder="What do patients need to know about your practice?"
-            className={`${INPUT} pl-11 pt-3 leading-relaxed`}
-            disabled={pending}
-          />
-        </div>
-      </div>
-
-      <div className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 p-4 text-xs text-on-surface-variant leading-relaxed">
-        <p>
-          <span className="font-semibold text-on-surface">What happens next:</span>{" "}
-          We review new clinics within one business day. You&apos;ll be able to
-          invite staff immediately, but the clinic stays hidden from public
-          search until approved. Your 30-day free trial starts the moment you
-          submit this form.
-        </p>
-      </div>
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed text-sm font-semibold shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-70"
+      {/* Footer nav */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 40,
+          gap: 12,
+        }}
       >
-        {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        {pending ? "Submitting…" : "Create clinic"}
-      </button>
-    </form>
+        <button
+          type="button"
+          className="btn ghost"
+          disabled={step === 0 || pending}
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+        >
+          <ArrowLeft size={14} /> Back
+        </button>
+        {step < STEPS.length - 1 ? (
+          <button
+            type="button"
+            className="btn primary"
+            disabled={!canNext || pending}
+            onClick={() => setStep((s) => s + 1)}
+          >
+            Continue <ArrowRight size={14} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn primary"
+            disabled={pending}
+            onClick={submit}
+          >
+            {pending ? <Loader2 size={14} className="animate-spin" /> : null}
+            {pending ? "Submitting…" : "Go to dashboard"}{" "}
+            <ArrowRight size={14} />
+          </button>
+        )}
+      </div>
+    </>
   );
 }

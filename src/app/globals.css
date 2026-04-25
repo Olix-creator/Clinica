@@ -360,3 +360,169 @@ body {
 /* Hide scrollbar utility */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { scrollbar-width: none; }
+
+/* ========================================================================
+   Clinica handoff utility classes (mirrored from styles/theme.css of the
+   design bundle so we can lift the markup verbatim).
+   ======================================================================== */
+
+:root {
+  --bg: var(--surface);
+  --bg-muted: var(--surface-container);
+  --border-strong: #d1d5db;
+  --text-muted: var(--on-surface-variant);
+  --text-subtle: #64748b;
+  --text-faint: #94a3b8;
+  --primary-600: var(--on-primary-fixed);
+  --primary-50: var(--primary-fixed);
+  --primary-100: var(--primary-fixed-dim);
+  --primary-tint: rgba(37, 99, 235, 0.08);
+  --success: #059669;
+  --success-50: #ecfdf5;
+  --warn: #d97706;
+  --warn-50: #fffbeb;
+  --danger: #dc2626;
+  --danger-50: #fef2f2;
+}
+
+/* Eyebrow / typographic helpers */
+.t-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-600);
+}
+.t-h1 { font-size: 44px; line-height: 1.08; letter-spacing: -0.025em; font-weight: 600; }
+.t-h2 { font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; font-weight: 600; }
+.t-h3 { font-size: 20px; line-height: 1.25; letter-spacing: -0.01em; font-weight: 600; }
+.t-h4 { font-size: 16px; font-weight: 600; letter-spacing: -0.005em; }
+.t-body { font-size: 14px; line-height: 1.55; color: var(--text-muted); }
+.t-small { font-size: 12px; color: var(--text-subtle); }
+
+/* Chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--outline-variant);
+}
+.chip.success { background: var(--success-50); color: var(--success); border-color: #a7f3d0; }
+.chip.warn    { background: var(--warn-50);    color: var(--warn);    border-color: #fde68a; }
+.chip.danger  { background: var(--danger-50);  color: var(--danger);  border-color: #fecaca; }
+.chip.primary { background: var(--primary-50); color: var(--primary-600); border-color: var(--primary-100); }
+.chip.dot::before {
+  content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor;
+}
+
+/* Buttons (handoff style) */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease, transform .06s ease;
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+}
+.btn:active { transform: translateY(0.5px); }
+.btn.primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+.btn.primary:hover { background: var(--on-primary-fixed); }
+.btn.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn.secondary {
+  background: var(--surface-bright);
+  color: var(--on-surface);
+  border-color: var(--border-strong);
+}
+.btn.secondary:hover { background: var(--bg-muted); }
+.btn.ghost { background: transparent; color: var(--text-muted); }
+.btn.ghost:hover { background: var(--bg-muted); color: var(--on-surface); }
+.btn.ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.danger { background: var(--danger); color: #fff; }
+.btn.sm { padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+.btn.lg { padding: 13px 22px; font-size: 15px; border-radius: 12px; }
+
+/* Inputs (handoff style) */
+.input, .select, .textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-bright);
+  font-size: 14px;
+  color: var(--on-surface);
+  transition: border-color .12s ease, box-shadow .12s ease;
+  font-family: inherit;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-tint);
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-faint); }
+.field-label { display: block; font-size: 13px; font-weight: 500; color: var(--on-surface); margin-bottom: 6px; }
+.field-hint  { font-size: 12px; color: var(--text-subtle); margin-top: 6px; }
+
+/* Card (handoff naming) */
+.card {
+  background: var(--surface-bright);
+  border: 1px solid var(--outline-variant);
+  border-radius: 14px;
+  box-shadow: var(--elev-1);
+}
+
+/* Section divider */
+hr.sep { border: 0; border-top: 1px solid var(--outline-variant); margin: 0; }
+
+/* Avatar */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+
+/* Striped photo placeholder */
+.ph-stripe {
+  background-image: repeating-linear-gradient(
+    135deg,
+    #e2e8f0 0 10px,
+    #edf1f6 10px 20px
+  );
+  color: #64748b;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Animations */
+@keyframes anim-fadeIn  { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes anim-slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.anim-fade  { animation: anim-fadeIn .24s ease both; }
+.anim-slide { animation: anim-slideUp .3s cubic-bezier(.2,.7,.2,1) both; }

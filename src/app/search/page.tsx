@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { MapPin, Stethoscope, ChevronDown, Search, Building2 } from "lucide-react";
+import { Search, MapPin, Stethoscope, Building2, Star, ArrowRight, Shield } from "lucide-react";
 import {
   searchClinics,
   listClinicSpecialties,
   type Clinic,
 } from "@/lib/data/clinics";
-import { PublicHeader } from "@/components/public/PublicHeader";
+import { PatientNav } from "@/components/public/PatientNav";
 import { PublicFooter } from "@/components/public/PublicFooter";
 
 export const dynamic = "force-dynamic";
@@ -13,16 +13,34 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Find a clinic — Clinica",
   description:
-    "Search top-rated medical professionals in your area. Filter by city and specialty, and book in three taps.",
+    "Search verified clinics across Algeria. Filter by city and specialty, book in seconds.",
 };
 
+const POPULAR_CHIPS = [
+  "Cardiology",
+  "Pediatrics",
+  "Dentistry",
+  "Dermatology",
+  "General Practice",
+];
+const ACCENT_POOL = [
+  "#2563EB",
+  "#DC2626",
+  "#D97706",
+  "#059669",
+  "#0F766E",
+  "#4F46E5",
+];
+
 /**
- * Public clinic directory — Clinica handoff design.
+ * Patient discovery page — mirrors `.design-handoff/pages/patient.jsx → SearchPage`.
  *
- * Two-pane layout: filter rail with the iconified inputs at the top,
- * then a 1/2/3-column responsive grid of mobile-style clinic cards
- * below. Cards mirror the handoff's `PAClinicCard` so the card you
- * see on the web matches the card you see in the patient mobile flow.
+ *   PatientNav
+ *   Hero (h1 + subline) + single pill search bar (search / city / specialty + button)
+ *   Popular chips
+ *   Result count + view toggle (grid)
+ *   3-col responsive grid of ClinicCard
+ *   Footer
  */
 export default async function SearchPage({
   searchParams,
@@ -39,381 +57,365 @@ export default async function SearchPage({
     listClinicSpecialties(),
   ]);
 
-  const hasFilters = Boolean(city || specialty || q);
-
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
-      <PublicHeader />
+    <div data-screen-label="Search" style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+      <PatientNav />
 
-      <main style={{ flex: 1 }}>
-        {/* Hero + filters */}
-        <section
-          style={{
-            background: "var(--surface-bright)",
-            borderBottom: "1px solid var(--outline-variant)",
-          }}
-        >
-          <div
+      {/* Hero + filter bar */}
+      <div
+        style={{
+          background: "var(--surface-bright)",
+          borderBottom: "1px solid var(--outline-variant)",
+        }}
+      >
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 32px 24px" }}>
+          <h1 className="t-h2" style={{ margin: 0 }}>
+            Find a clinic near you.
+          </h1>
+          <p className="t-body" style={{ marginTop: 8 }}>
+            Book in seconds. Search verified clinics across Algeria.
+          </p>
+
+          <form
+            method="get"
+            action="/search"
+            className="card"
             style={{
-              maxWidth: 1100,
-              margin: "0 auto",
-              padding: "32px 32px 24px",
+              marginTop: 24,
+              padding: 8,
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              boxShadow: "var(--elev-2)",
             }}
           >
-            <h1
-              style={{
-                fontSize: 28,
-                fontWeight: 700,
-                margin: 0,
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Find a clinic
-            </h1>
-            <p
-              className="t-body"
-              style={{ margin: "6px 0 22px", maxWidth: 540 }}
-            >
-              Search by city and specialty. Real-time availability, no phone
-              calls needed.
-            </p>
-
-            <form
-              method="get"
-              action="/search"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr auto",
-                gap: 8,
-              }}
-            >
-              <label style={{ position: "relative" }}>
-                <MapPin
-                  size={16}
-                  style={{
-                    position: "absolute",
-                    left: 14,
-                    top: 14,
-                    color: "var(--text-subtle)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <input
-                  name="city"
-                  defaultValue={city}
-                  placeholder="City (e.g. Algiers)"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px 12px 38px",
-                    borderRadius: 12,
-                    border: "1px solid var(--outline-variant)",
-                    background: "var(--bg-muted)",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    outline: "none",
-                  }}
-                />
-              </label>
-              <label style={{ position: "relative" }}>
-                <Stethoscope
-                  size={16}
-                  style={{
-                    position: "absolute",
-                    left: 14,
-                    top: 14,
-                    color: "var(--text-subtle)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <select
-                  name="specialty"
-                  defaultValue={specialty}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px 12px 38px",
-                    borderRadius: 12,
-                    border: "1px solid var(--outline-variant)",
-                    background: "var(--bg-muted)",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    appearance: "none",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="">All specialties</option>
-                  {specialties.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  style={{
-                    position: "absolute",
-                    right: 14,
-                    top: 15,
-                    color: "var(--text-subtle)",
-                    pointerEvents: "none",
-                  }}
-                />
-              </label>
-              <label style={{ position: "relative" }}>
-                <Search
-                  size={16}
-                  style={{
-                    position: "absolute",
-                    left: 14,
-                    top: 14,
-                    color: "var(--text-subtle)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <input
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Search by name…"
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px 12px 38px",
-                    borderRadius: 12,
-                    border: "1px solid var(--outline-variant)",
-                    background: "var(--bg-muted)",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    outline: "none",
-                  }}
-                />
-              </label>
-              <button type="submit" className="btn primary" style={{ padding: "0 22px" }}>
-                <Search size={15} />
-                Search
-              </button>
-            </form>
-
-            {hasFilters && (
-              <div
+            <div style={{ flex: 1.5, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+              <Search size={18} style={{ color: "var(--text-subtle)" }} />
+              <input
+                name="q"
+                defaultValue={q}
+                placeholder="Clinic name, doctor, or condition"
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 14,
+                  border: 0,
+                  outline: 0,
+                  background: "transparent",
+                  width: "100%",
+                  fontSize: 14,
+                  color: "var(--on-surface)",
+                }}
+              />
+            </div>
+            <div style={{ width: 1, height: 24, background: "var(--outline-variant)" }} />
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+              <MapPin size={16} style={{ color: "var(--text-subtle)" }} />
+              <input
+                name="city"
+                defaultValue={city}
+                placeholder="All cities"
+                list="cities-list"
+                style={{
+                  border: 0,
+                  outline: 0,
+                  background: "transparent",
+                  width: "100%",
+                  fontSize: 14,
+                  color: "var(--on-surface)",
+                }}
+              />
+              <datalist id="cities-list">
+                {["Algiers", "Oran", "Constantine", "Annaba", "Blida", "Setif"].map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <div style={{ width: 1, height: 24, background: "var(--outline-variant)" }} />
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
+              <Stethoscope size={16} style={{ color: "var(--text-subtle)" }} />
+              <select
+                name="specialty"
+                defaultValue={specialty}
+                style={{
+                  border: 0,
+                  outline: 0,
+                  background: "transparent",
+                  width: "100%",
+                  fontSize: 14,
+                  cursor: "pointer",
+                  color: "var(--on-surface)",
                 }}
               >
-                <p className="t-small">
-                  <span style={{ color: "var(--on-surface)", fontWeight: 600 }}>
-                    {clinics.length} {clinics.length === 1 ? "clinic" : "clinics"}
-                  </span>
-                  {city ? ` in ${city}` : ""}
-                  {specialty ? ` · ${specialty}` : ""}
-                </p>
+                <option value="">All specialties</option>
+                {specialties.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button type="submit" className="btn primary">
+              Search
+            </button>
+          </form>
+
+          {/* Popular chips */}
+          <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <span className="t-small" style={{ marginRight: 8 }}>
+              Popular:
+            </span>
+            {POPULAR_CHIPS.map((s) => {
+              const active = specialty === s;
+              const params = new URLSearchParams();
+              if (city) params.set("city", city);
+              if (q) params.set("q", q);
+              if (!active) params.set("specialty", s);
+              const href = `/search${params.toString() ? `?${params.toString()}` : ""}`;
+              return (
                 <Link
-                  href="/search"
+                  key={s}
+                  href={href}
+                  className="chip"
                   style={{
-                    fontSize: 12,
-                    color: "var(--primary-600)",
+                    cursor: "pointer",
+                    background: active ? "var(--primary-50)" : "var(--surface-bright)",
+                    color: active ? "var(--primary-600)" : "var(--text-muted)",
+                    borderColor: active ? "var(--primary-100)" : "var(--outline-variant)",
                     textDecoration: "none",
-                    fontWeight: 500,
                   }}
                 >
-                  Clear filters
+                  {s}
                 </Link>
-              </div>
-            )}
+              );
+            })}
           </div>
-        </section>
+        </div>
+      </div>
 
-        {/* Results */}
-        <section
+      {/* Results */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 32px 80px", flex: 1, width: "100%" }}>
+        <div
           style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            padding: "28px 32px 64px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
           }}
         >
-          {clinics.length === 0 ? (
-            <EmptyResults hasFilters={hasFilters} />
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-                gap: 14,
-              }}
-            >
-              {clinics.map((c) => (
-                <ClinicCard key={c.id} clinic={c} />
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
+          <div style={{ fontSize: 14, color: "var(--text-muted)" }}>
+            <span style={{ color: "var(--on-surface)", fontWeight: 600 }}>
+              {clinics.length} {clinics.length === 1 ? "clinic" : "clinics"}
+            </span>{" "}
+            found
+            {city ? ` in ${city}` : ""}
+            {specialty ? ` · ${specialty}` : ""}
+          </div>
+        </div>
+
+        {clinics.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {clinics.map((c, i) => (
+              <ClinicCard
+                key={c.id}
+                clinic={c}
+                accent={ACCENT_POOL[i % ACCENT_POOL.length]}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       <PublicFooter />
     </div>
   );
 }
 
-function ClinicCard({ clinic }: { clinic: Clinic }) {
-  const accent = "#2563EB";
+function ClinicCard({ clinic, accent }: { clinic: Clinic; accent: string }) {
+  // Status='approved' means the public listing — design shows that as "Verified".
+  const verified = clinic.status === "approved";
   const description =
-    clinic.description ??
-    `Learn more about ${clinic.name} and book online.`;
+    clinic.description ?? `Learn more about ${clinic.name} and book online.`;
 
   return (
     <Link
       href={`/clinic/${clinic.id}`}
+      className="card"
       style={{
-        display: "block",
+        padding: 0,
         textDecoration: "none",
         color: "inherit",
-        background: "var(--surface-bright)",
-        borderRadius: 16,
-        padding: 16,
-        boxShadow:
-          "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px -6px rgba(15,23,42,0.06)",
-        border: "1px solid rgba(15,23,42,0.04)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
         transition: "transform .12s ease, box-shadow .12s ease",
       }}
     >
-      <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            background: `linear-gradient(135deg, ${accent}25, ${accent}10)`,
-            color: accent,
-            display: "grid",
-            placeItems: "center",
-            flexShrink: 0,
-          }}
-        >
-          <Building2 size={22} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              lineHeight: 1.3,
-              color: "var(--on-surface)",
-            }}
-          >
-            {clinic.name}
-          </div>
-          {clinic.specialty ? (
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--primary-600)",
-                fontWeight: 500,
-                marginTop: 2,
-              }}
-            >
-              {clinic.specialty}
-            </div>
-          ) : null}
-          {clinic.city ? (
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--text-subtle)",
-                marginTop: 2,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <MapPin size={10} /> {clinic.city}
-            </div>
-          ) : null}
-        </div>
-      </div>
-      <p
-        style={{
-          fontSize: 12,
-          color: "var(--text-muted)",
-          lineHeight: 1.5,
-          margin: "0 0 12px",
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {description}
-      </p>
+      {/* Hero photo placeholder */}
       <div
         style={{
           width: "100%",
-          padding: "10px 0",
-          borderRadius: 10,
-          border: 0,
-          background: "var(--primary)",
-          color: "#fff",
-          fontSize: 13,
-          fontWeight: 600,
-          textAlign: "center",
+          height: 160,
+          flexShrink: 0,
+          background: `linear-gradient(135deg, ${accent}20 0%, ${accent}08 100%)`,
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        View Clinic
+        <Building2 size={48} style={{ color: accent, opacity: 0.5 }} />
+        {verified ? (
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              background: "rgba(255,255,255,0.95)",
+              backdropFilter: "blur(4px)",
+              padding: "3px 8px",
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--primary-600)",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Shield size={11} strokeWidth={2.2} /> Verified
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        style={{
+          padding: 18,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--on-surface)" }}>
+              {clinic.name}
+            </div>
+            {clinic.specialty ? (
+              <div style={{ fontSize: 12, color: "var(--primary-600)", fontWeight: 500, marginTop: 2 }}>
+                {clinic.specialty}
+              </div>
+            ) : null}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              fontSize: 12,
+              color: "var(--text-muted)",
+              flexShrink: 0,
+            }}
+          >
+            <Star size={13} style={{ color: "#F59E0B", fill: "#F59E0B" }} strokeWidth={0} />
+            <b style={{ color: "var(--on-surface)" }}>4.8</b>
+            <span>(—)</span>
+          </div>
+        </div>
+        {clinic.city || clinic.address ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              color: "var(--text-subtle)",
+            }}
+          >
+            <MapPin size={12} />
+            {clinic.city}
+            {clinic.address ? ` · ${clinic.address.split(",")[0]}` : ""}
+          </div>
+        ) : null}
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--text-muted)",
+            margin: "8px 0 0",
+            lineHeight: 1.5,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {description}
+        </p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: "auto",
+            paddingTop: 10,
+          }}
+        >
+          <span className="chip success dot">Available today</span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: 13,
+              color: "var(--primary-600)",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            Book <ArrowRight size={13} />
+          </span>
+        </div>
       </div>
     </Link>
   );
 }
 
-function EmptyResults({ hasFilters }: { hasFilters: boolean }) {
+function EmptyState() {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: "60px 24px",
-      }}
-    >
+    <div className="card" style={{ padding: 60, textAlign: "center" }}>
       <div
         style={{
-          width: 72,
-          height: 72,
-          borderRadius: 20,
+          width: 64,
+          height: 64,
+          margin: "0 auto 16px",
           background: "var(--bg-muted)",
-          color: "var(--text-subtle)",
+          borderRadius: 16,
           display: "grid",
           placeItems: "center",
-          marginBottom: 18,
+          color: "var(--text-subtle)",
         }}
       >
-        <Search size={32} />
+        <Search size={28} />
       </div>
-      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 6 }}>
-        {hasFilters ? "No clinics found" : "No clinics yet"}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          color: "var(--text-muted)",
-          lineHeight: 1.5,
-          maxWidth: 320,
-        }}
+      <h3 className="t-h4" style={{ margin: 0 }}>
+        No clinics match your filters.
+      </h3>
+      <p className="t-body" style={{ maxWidth: 360, margin: "8px auto 0" }}>
+        Try widening your specialty, changing city, or clearing the search box.
+      </p>
+      <Link
+        href="/search"
+        className="btn secondary"
+        style={{ marginTop: 16, display: "inline-flex" }}
       >
-        {hasFilters
-          ? "Try a different city or specialty to widen your search."
-          : "Once clinics join the network they'll appear here."}
-      </div>
-      {hasFilters ? (
-        <Link
-          href="/search"
-          className="btn secondary"
-          style={{ marginTop: 20 }}
-        >
-          Clear filters
-        </Link>
-      ) : null}
+        Clear filters
+      </Link>
     </div>
   );
 }

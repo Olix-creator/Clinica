@@ -5,17 +5,25 @@ import { getProfile, getSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { listClinics } from "@/lib/data/clinics";
 import { BookingForm } from "@/components/booking/BookingForm";
-import { bookAppointment, loadBookedSlots, findNextAvailable } from "./actions";
+import {
+  bookAppointment,
+  loadBookedSlots,
+  findNextAvailable,
+} from "./actions";
 
 /**
- * Booking page. Accepts optional `?clinicId=…&doctorId=…` search params so
- * the public /clinic/[id] page (and the landing-page "Book appointment" CTA)
- * can deep-link a visitor straight to step 2 or step 3 of the wizard instead
- * of making them pick the clinic again.
+ * Booking page — single source of truth for the patient booking flow.
  *
- * Auth flow is bespoke (not `requireRole`) so we can preserve the user's
- * intent across login: an anonymous click on "Book appointment" lands at
- * /login?redirect=/booking, the auth pages bounce them back here on success.
+ * Every booking entry point (landing page, /search → /clinic/[id],
+ * /patient dashboard) routes here so the UI is identical across surfaces.
+ *
+ * Optional `?clinicId=…&doctorId=…` deep-links jump the wizard
+ * straight to the appropriate step instead of forcing the user to
+ * re-pick a clinic they already chose.
+ *
+ * Auth flow is bespoke (not `requireRole`) so we preserve intent
+ * across login: anonymous click → `/login?redirect=/booking?…`,
+ * auth pages bounce back here on success.
  */
 export default async function BookingPage({
   searchParams,
@@ -30,31 +38,23 @@ export default async function BookingPage({
     ? `/booking?${passthrough.toString()}`
     : "/booking";
 
-  // Anonymous → land in the login wizard with `?redirect=` so the visitor
-  // bounces back here after sign-in / sign-up.
   const { user } = await getSession();
   if (!user) {
     redirect(`/login?redirect=${encodeURIComponent(target)}`);
   }
   const profile = await getProfile(user.id);
   if (!profile) {
-    // First-time SSO users without a profile yet — finish onboarding,
-    // then come back to booking.
     redirect(`/onboarding?redirect=${encodeURIComponent(target)}`);
   }
-  // Doctors / receptionists shouldn't book on their own behalf — bounce them
-  // to their dashboard so they don't see a half-relevant patient flow.
   if (profile.role !== "patient") redirect("/dashboard");
 
   const clinics = await listClinics();
   const { clinicId, doctorId } = sp;
 
-  // Validate the pre-selection against the clinic list — if the caller passes
-  // a bogus id we ignore it rather than rendering a stuck wizard.
-  const safeClinicId = clinicId && clinics.some((c) => c.id === clinicId) ? clinicId : "";
+  const safeClinicId =
+    clinicId && clinics.some((c) => c.id === clinicId) ? clinicId : "";
   const safeDoctorId = safeClinicId && doctorId ? doctorId : "";
 
-  // Pre-fill the booking phone with whatever we already have on file.
   const supabase = await createClient();
   const { data: row } = await supabase
     .from("profiles")
@@ -63,25 +63,37 @@ export default async function BookingPage({
     .maybeSingle();
   const initialPhone = row?.phone ?? "";
 
+  const backHref = safeClinicId ? `/clinic/${safeClinicId}` : "/patient";
+
   return (
-    <div className="max-w-3xl mx-auto animate-fade-in-up">
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: "32px 24px 48px" }}>
       <Link
-        href={safeClinicId ? `/clinic/${safeClinicId}` : "/patient"}
-        className="inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-on-surface mb-6 transition"
+        href={backHref}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: "var(--text-muted)",
+          textDecoration: "none",
+          fontSize: 13,
+          marginBottom: 20,
+        }}
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft size={14} />
         Back
       </Link>
 
-      <div className="mb-8">
-        <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">New booking</p>
-        <h1 className="font-headline text-3xl sm:text-4xl font-semibold tracking-tight">Book an appointment.</h1>
-        <p className="text-on-surface-variant mt-2">
+      <div style={{ marginBottom: 28 }}>
+        <p className="t-eyebrow">New booking</p>
+        <h1 className="t-h2" style={{ marginTop: 8 }}>
+          Book an appointment.
+        </h1>
+        <p className="t-body" style={{ marginTop: 8 }}>
           Four quiet steps — pick a clinic, choose a doctor, set a time.
         </p>
       </div>
 
-      <div className="rounded-[2rem] bg-surface-container-lowest p-6 sm:p-8 ring-1 ring-outline-variant/30">
+      <div className="card" style={{ padding: "24px 24px 28px" }}>
         <BookingForm
           clinics={clinics}
           action={bookAppointment}

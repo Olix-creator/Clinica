@@ -14,7 +14,6 @@ import {
   Phone,
   Sun,
   CloudSun,
-  Moon,
   Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -67,13 +66,12 @@ function doctorDisplayName(d: Doctor): string {
 }
 
 const STEPS = [
-  { n: 1, label: "Clinic", icon: Building2 },
-  { n: 2, label: "Doctor", icon: Stethoscope },
-  { n: 3, label: "Time", icon: CalendarClock },
-  { n: 4, label: "Confirm", icon: CheckCircle2 },
+  { n: 1, label: "Clinic", Ic: Building2 },
+  { n: 2, label: "Doctor", Ic: Stethoscope },
+  { n: 3, label: "Time", Ic: CalendarClock },
+  { n: 4, label: "Confirm", Ic: CheckCircle2 },
 ];
 
-// Build a 7-day strip starting today.
 function buildDateStrip(days = 7) {
   const out: { iso: string; dayLabel: string; dateLabel: string }[] = [];
   const today = new Date();
@@ -90,7 +88,6 @@ function buildDateStrip(days = 7) {
   return out;
 }
 
-// Consider a slot "past" if we're booking today and the slot already elapsed.
 function isSlotPast(dayISO: string, slot: string): boolean {
   const now = new Date();
   const todayISO = now.toISOString().slice(0, 10);
@@ -101,6 +98,16 @@ function isSlotPast(dayISO: string, slot: string): boolean {
   return slotDate.getTime() <= now.getTime();
 }
 
+/**
+ * Master booking UI — the ONE patient booking experience used by every
+ * entry point in the app (landing CTA, /search → /clinic/[id], /patient
+ * dashboard). Every surface that wants to start a booking links to
+ * `/booking` (with optional `?clinicId=&doctorId=` deep-link) and lands
+ * on this exact form.
+ *
+ * Style is Clinica handoff: light surface, blue primary, slate text,
+ * rounded-10/14, .btn / .chip / .input utility classes from globals.css.
+ */
 export function BookingForm({
   clinics,
   action,
@@ -115,14 +122,10 @@ export function BookingForm({
   loadSlots: (doctorId: string, dayISO: string) => Promise<LoadSlotsResult>;
   findSuggestion: (doctorId: string, fromDayISO: string) => Promise<SuggestResult>;
   initialPhone?: string;
-  /** Pre-select a clinic — used when the user arrives from a /clinic/:id page. */
   initialClinicId?: string;
-  /** Pre-select a doctor within that clinic. */
   initialDoctorId?: string;
 }) {
   const router = useRouter();
-  // When we arrive with a clinic pre-selected, jump straight to step 2 (doctor),
-  // or step 3 (time) if a doctor is also known.
   const initialStep = initialDoctorId ? 3 : initialClinicId ? 2 : 1;
   const [step, setStep] = useState(initialStep);
   const [clinicId, setClinicId] = useState(initialClinicId);
@@ -146,7 +149,6 @@ export function BookingForm({
   const phoneOk = phone.trim() !== "" && isValidPhone(phone);
   const dateStrip = useMemo(() => buildDateStrip(7), []);
 
-  // Load doctors when a clinic is picked.
   useEffect(() => {
     if (!clinicId) {
       setDoctors([]);
@@ -167,7 +169,6 @@ export function BookingForm({
         if (error) toast.error("Could not load doctors");
         const list = ((data ?? []) as unknown) as Doctor[];
         setDoctors(list);
-        // Keep a pre-selected doctor if it belongs to this clinic; otherwise reset.
         setDoctorId((prev) => (prev && list.some((d) => d.id === prev) ? prev : ""));
         setLoadingDoctors(false);
       });
@@ -176,7 +177,6 @@ export function BookingForm({
     };
   }, [clinicId]);
 
-  // Load booked + unavailable slots when (doctor, day) changes.
   useEffect(() => {
     if (!doctorId || !dayISO) {
       setBookedSlots([]);
@@ -185,7 +185,7 @@ export function BookingForm({
     }
     let cancelled = false;
     setLoadingSlots(true);
-    setTimeSlot(""); // reset any prior selection when scope changes
+    setTimeSlot("");
     loadSlots(doctorId, dayISO).then((res) => {
       if (cancelled) return;
       if (res.ok) {
@@ -203,8 +203,6 @@ export function BookingForm({
     };
   }, [doctorId, dayISO, loadSlots]);
 
-  // Any time the doctor changes we recompute the "next available" suggestion
-  // starting from today — this is what powers the Smart Rescheduling banner.
   useEffect(() => {
     if (!doctorId) {
       setSuggestion(null);
@@ -277,50 +275,121 @@ export function BookingForm({
 
   if (success) {
     return (
-      <div className="py-16 text-center animate-fade-in">
-        <div className="w-20 h-20 rounded-full bg-primary/15 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-          <CheckCircle2 className="w-10 h-10 text-primary animate-checkmark" />
+      <div style={{ padding: "48px 8px", textAlign: "center" }}>
+        <div
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: 24,
+            background: "var(--success-50)",
+            color: "var(--success)",
+            display: "grid",
+            placeItems: "center",
+            margin: "0 auto 22px",
+            boxShadow: "0 0 0 8px rgba(5, 150, 105, 0.06)",
+          }}
+        >
+          <CheckCircle2 size={42} strokeWidth={2.4} />
         </div>
-        <h3 className="font-headline text-2xl font-semibold mb-2">Booking confirmed.</h3>
-        <p className="text-on-surface-variant">Taking you to your dashboard…</p>
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: 0,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          Appointment booked
+        </h2>
+        <p className="t-body" style={{ marginTop: 8 }}>
+          Taking you to your dashboard…
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="anim-fade">
       {/* Progress indicator */}
-      <div className="flex items-center gap-2 mb-10 overflow-x-auto hide-scrollbar">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 28,
+          overflowX: "auto",
+          paddingBottom: 4,
+        }}
+        className="hide-scrollbar"
+      >
         {STEPS.map((s, i) => {
           const active = s.n === step;
           const done = s.n < step;
           return (
-            <div key={s.n} className="flex items-center gap-2 flex-shrink-0">
+            <div
+              key={s.n}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexShrink: 0,
+              }}
+            >
               <div
-                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition ${
-                  active
-                    ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  background: active
+                    ? "var(--primary-tint)"
                     : done
-                    ? "bg-surface-container-highest text-on-surface"
-                    : "bg-surface-container text-on-surface-variant"
-                }`}
+                      ? "var(--bg-muted)"
+                      : "transparent",
+                  color: active
+                    ? "var(--primary-600)"
+                    : done
+                      ? "var(--on-surface)"
+                      : "var(--text-subtle)",
+                  border: active
+                    ? "1px solid var(--primary-100)"
+                    : "1px solid transparent",
+                  fontWeight: active ? 600 : 500,
+                  fontSize: 13,
+                  whiteSpace: "nowrap",
+                }}
               >
                 <span
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
-                    active
-                      ? "bg-primary text-on-primary-fixed"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 999,
+                    display: "grid",
+                    placeItems: "center",
+                    background: active
+                      ? "var(--primary)"
                       : done
-                      ? "bg-surface-bright text-on-surface"
-                      : "bg-surface-container-highest"
-                  }`}
+                        ? "var(--on-surface)"
+                        : "var(--outline-variant)",
+                    color: active || done ? "#fff" : "var(--text-muted)",
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
                 >
-                  {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : s.n}
+                  {done ? <CheckCircle2 size={12} /> : s.n}
                 </span>
-                <span className="text-sm font-medium">{s.label}</span>
+                {s.label}
               </div>
               {i < STEPS.length - 1 && (
                 <span
-                  className={`w-6 h-px ${done ? "bg-primary/40" : "bg-outline-variant/40"}`}
+                  style={{
+                    width: 14,
+                    height: 1,
+                    background: done
+                      ? "var(--primary)"
+                      : "var(--outline-variant)",
+                  }}
                 />
               )}
             </div>
@@ -328,25 +397,59 @@ export function BookingForm({
         })}
       </div>
 
-      {error && (
-        <div className="mb-5 rounded-xl bg-error-container/30 border border-error/30 px-4 py-3 text-sm text-error">
+      {error ? (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #fecaca",
+            background: "var(--danger-50)",
+            color: "var(--danger)",
+            fontSize: 13,
+          }}
+        >
           {error}
         </div>
-      )}
+      ) : null}
 
       {/* Step 1: Clinic */}
       {step === 1 && (
-        <div className="space-y-4">
+        <div className="anim-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-1">Step 1</p>
-            <h2 className="font-headline text-2xl font-semibold">Pick a clinic.</h2>
+            <p className="t-eyebrow">Step 1</p>
+            <h2
+              style={{
+                margin: "6px 0 0",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Pick a clinic.
+            </h2>
           </div>
           {clinics.length === 0 ? (
-            <div className="rounded-2xl bg-surface-container-low p-8 text-center text-on-surface-variant">
+            <div
+              style={{
+                padding: 32,
+                textAlign: "center",
+                color: "var(--text-muted)",
+                background: "var(--bg-muted)",
+                borderRadius: 14,
+                fontSize: 14,
+              }}
+            >
               No clinics are available yet.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 10,
+              }}
+            >
               {clinics.map((c) => {
                 const active = c.id === clinicId;
                 return (
@@ -354,26 +457,59 @@ export function BookingForm({
                     key={c.id}
                     type="button"
                     onClick={() => setClinicId(c.id)}
-                    className={`group text-left p-6 rounded-2xl transition ${
-                      active
-                        ? "bg-surface-container-highest ring-2 ring-primary"
-                        : "bg-surface-container-low hover:bg-surface-container ring-1 ring-transparent"
-                    }`}
+                    style={{
+                      textAlign: "left",
+                      padding: 18,
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      background: "var(--surface-bright)",
+                      border: active
+                        ? "1.5px solid var(--primary)"
+                        : "1px solid var(--outline-variant)",
+                      boxShadow: active
+                        ? "0 0 0 3px var(--primary-tint)"
+                        : "none",
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      transition: "all .12s ease",
+                    }}
                   >
-                    <div className="flex items-start gap-4">
-                      <span
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          active ? "bg-primary/20" : "bg-surface-container-highest"
-                        }`}
+                    <span
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: active
+                          ? "var(--primary-50)"
+                          : "var(--bg-muted)",
+                        color: active ? "var(--primary-600)" : "var(--text-muted)",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Building2 size={18} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
                       >
-                        <Building2 className={`w-5 h-5 ${active ? "text-primary" : "text-on-surface-variant"}`} />
-                      </span>
-                      <div className="flex-1">
-                        <p className="font-semibold">{c.name}</p>
-                        <p className="text-xs text-on-surface-variant mt-1">General practice</p>
+                        {c.name}
                       </div>
-                      {active && <CheckCircle2 className="w-5 h-5 text-primary" />}
                     </div>
+                    {active ? (
+                      <CheckCircle2
+                        size={18}
+                        style={{ color: "var(--primary)", flexShrink: 0 }}
+                      />
+                    ) : null}
                   </button>
                 );
               })}
@@ -384,22 +520,56 @@ export function BookingForm({
 
       {/* Step 2: Doctor */}
       {step === 2 && (
-        <div className="space-y-4">
+        <div className="anim-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-1">Step 2</p>
-            <h2 className="font-headline text-2xl font-semibold">Choose a doctor.</h2>
-            <p className="text-sm text-on-surface-variant mt-1">{selectedClinic?.name}</p>
+            <p className="t-eyebrow">Step 2</p>
+            <h2
+              style={{
+                margin: "6px 0 0",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Choose a doctor.
+            </h2>
+            <p className="t-body" style={{ margin: "4px 0 0" }}>
+              {selectedClinic?.name}
+            </p>
           </div>
           {loadingDoctors ? (
-            <div className="rounded-2xl bg-surface-container-low p-10 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <div
+              style={{
+                padding: 32,
+                display: "grid",
+                placeItems: "center",
+                background: "var(--bg-muted)",
+                borderRadius: 14,
+              }}
+            >
+              <Loader2 size={18} className="animate-spin" style={{ color: "var(--primary)" }} />
             </div>
           ) : doctors.length === 0 ? (
-            <div className="rounded-2xl bg-surface-container-low p-8 text-center text-on-surface-variant">
+            <div
+              style={{
+                padding: 32,
+                textAlign: "center",
+                color: "var(--text-muted)",
+                background: "var(--bg-muted)",
+                borderRadius: 14,
+                fontSize: 14,
+              }}
+            >
               No doctors available at this clinic.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 10,
+              }}
+            >
               {doctors.map((d) => {
                 const active = d.id === doctorId;
                 const name = doctorDisplayName(d);
@@ -408,28 +578,56 @@ export function BookingForm({
                     key={d.id}
                     type="button"
                     onClick={() => setDoctorId(d.id)}
-                    className={`text-left p-6 rounded-2xl transition ${
-                      active
-                        ? "bg-surface-container-highest ring-2 ring-primary"
-                        : "bg-surface-container-low hover:bg-surface-container ring-1 ring-transparent"
-                    }`}
+                    style={{
+                      textAlign: "left",
+                      padding: 18,
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      background: "var(--surface-bright)",
+                      border: active
+                        ? "1.5px solid var(--primary)"
+                        : "1px solid var(--outline-variant)",
+                      boxShadow: active ? "0 0 0 3px var(--primary-tint)" : "none",
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      transition: "all .12s ease",
+                    }}
                   >
-                    <div className="flex items-start gap-4">
-                      <span
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                          active ? "bg-primary/20" : "bg-surface-container-highest"
-                        }`}
+                    <span
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: active
+                          ? "var(--primary-50)"
+                          : "var(--bg-muted)",
+                        color: active ? "var(--primary-600)" : "var(--text-muted)",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Stethoscope size={18} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{name}</div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-subtle)",
+                          marginTop: 2,
+                        }}
                       >
-                        <Stethoscope className={`w-5 h-5 ${active ? "text-primary" : "text-on-surface-variant"}`} />
-                      </span>
-                      <div className="flex-1">
-                        <p className="font-semibold">{name}</p>
-                        <p className="text-xs text-on-surface-variant mt-1">
-                          {d.specialty ?? "General Practice"}
-                        </p>
+                        {d.specialty ?? "General Practice"}
                       </div>
-                      {active && <CheckCircle2 className="w-5 h-5 text-primary" />}
                     </div>
+                    {active ? (
+                      <CheckCircle2
+                        size={18}
+                        style={{ color: "var(--primary)", flexShrink: 0 }}
+                      />
+                    ) : null}
                   </button>
                 );
               })}
@@ -438,21 +636,47 @@ export function BookingForm({
         </div>
       )}
 
-      {/* Step 3: Date & time slot grid + phone */}
+      {/* Step 3: Date & time slot */}
       {step === 3 && (
-        <div className="space-y-5">
+        <div className="anim-fade" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-1">Step 3</p>
-            <h2 className="font-headline text-2xl font-semibold">Pick a time.</h2>
-            <p className="text-sm text-on-surface-variant mt-1">
+            <p className="t-eyebrow">Step 3</p>
+            <h2
+              style={{
+                margin: "6px 0 0",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Pick a time.
+            </h2>
+            <p className="t-body" style={{ margin: "4px 0 0" }}>
               30-minute slot at {selectedClinic?.name}
               {selectedDoctor ? ` with ${doctorDisplayName(selectedDoctor)}` : ""}.
             </p>
           </div>
 
-          <div className="rounded-2xl bg-surface-container-low p-5 sm:p-6 ring-1 ring-outline-variant/20">
+          <div
+            style={{
+              padding: 18,
+              borderRadius: 14,
+              border: "1px solid var(--outline-variant)",
+              background: "var(--surface-bright)",
+            }}
+          >
             {/* Date strip */}
-            <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto hide-scrollbar pb-4 mb-5 border-b border-outline-variant/20">
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                overflowX: "auto",
+                paddingBottom: 14,
+                marginBottom: 14,
+                borderBottom: "1px solid var(--outline-variant)",
+              }}
+              className="hide-scrollbar"
+            >
               {dateStrip.map((d) => {
                 const active = d.iso === dayISO;
                 return (
@@ -460,35 +684,60 @@ export function BookingForm({
                     key={d.iso}
                     type="button"
                     onClick={() => setDayISO(d.iso)}
-                    className={`flex flex-col items-center justify-center py-2.5 px-4 rounded-xl min-w-[76px] transition ${
-                      active
-                        ? "bg-primary text-on-primary-fixed ring-2 ring-primary shadow-emerald"
-                        : "bg-surface-container hover:bg-surface-container-highest text-on-surface"
-                    }`}
+                    style={{
+                      flexShrink: 0,
+                      minWidth: 64,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      background: active ? "var(--primary)" : "var(--bg-muted)",
+                      color: active ? "#fff" : "var(--on-surface)",
+                      border: "1px solid",
+                      borderColor: active
+                        ? "var(--primary)"
+                        : "var(--outline-variant)",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 2,
+                      transition: "all .12s ease",
+                    }}
                   >
                     <span
-                      className={`text-[10px] mb-1 uppercase font-semibold tracking-wider ${
-                        active ? "opacity-90" : "text-on-surface-variant"
-                      }`}
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        letterSpacing: "0.05em",
+                        textTransform: "uppercase",
+                        opacity: active ? 0.9 : 0.7,
+                      }}
                     >
                       {d.dayLabel}
                     </span>
-                    <span className="text-lg font-bold">{d.dateLabel}</span>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>
+                      {d.dateLabel}
+                    </span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Time slots grid */}
+            {/* Time slot grid */}
             {loadingSlots ? (
-              <div className="py-10 flex items-center justify-center">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <div
+                style={{
+                  padding: 28,
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <Loader2 size={18} className="animate-spin" style={{ color: "var(--primary)" }} />
               </div>
             ) : (
-              <div className="space-y-6">
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <SlotSection
                   title="Morning"
-                  Icon={Sun}
+                  Ic={Sun}
                   slots={MORNING as unknown as string[]}
                   dayISO={dayISO}
                   bookedSlots={bookedSlots}
@@ -498,7 +747,7 @@ export function BookingForm({
                 />
                 <SlotSection
                   title="Afternoon"
-                  Icon={CloudSun}
+                  Ic={CloudSun}
                   slots={AFTERNOON as unknown as string[]}
                   dayISO={dayISO}
                   bookedSlots={bookedSlots}
@@ -509,14 +758,30 @@ export function BookingForm({
               </div>
             )}
 
-            {/* Smart suggestion — shown when the user hasn't picked a slot and
-                we know of a next-available alternative. */}
-            {!timeSlot && !loadingSlots && suggestion && (
-              <div className="mt-5 rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-on-surface">
+            {/* Smart suggestion */}
+            {!timeSlot && !loadingSlots && suggestion ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid var(--primary-100)",
+                  background: "var(--primary-50)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{ display: "flex", gap: 10, alignItems: "flex-start", minWidth: 0 }}
+                >
+                  <Sparkles
+                    size={16}
+                    style={{ color: "var(--primary-600)", marginTop: 2, flexShrink: 0 }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>
                       Next available:{" "}
                       {new Date(suggestion.dayISO + "T00:00:00").toLocaleDateString(
                         undefined,
@@ -524,7 +789,13 @@ export function BookingForm({
                       )}{" "}
                       at {suggestion.slot}
                     </p>
-                    <p className="text-xs text-on-surface-variant">
+                    <p
+                      style={{
+                        margin: "2px 0 0",
+                        fontSize: 11,
+                        color: "var(--text-subtle)",
+                      }}
+                    >
                       One tap to jump to the earliest free slot.
                     </p>
                   </div>
@@ -535,33 +806,65 @@ export function BookingForm({
                     setDayISO(suggestion.dayISO);
                     setTimeSlot(suggestion.slot);
                   }}
-                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary-container transition"
+                  className="btn primary sm"
+                  style={{ flexShrink: 0 }}
                 >
                   Use this
                 </button>
               </div>
-            )}
+            ) : null}
 
-            {loadingSuggestion && !timeSlot && !loadingSlots && (
-              <p className="mt-5 text-xs text-on-surface-variant inline-flex items-center gap-2">
-                <Loader2 className="w-3 h-3 animate-spin" /> Finding the earliest available slot…
+            {loadingSuggestion && !timeSlot && !loadingSlots ? (
+              <p
+                className="t-small"
+                style={{
+                  marginTop: 12,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Loader2 size={11} className="animate-spin" /> Finding the
+                earliest available slot…
               </p>
-            )}
+            ) : null}
 
-            {timeSlot && (
-              <div className="mt-5 rounded-xl bg-primary-container/20 border border-primary/30 px-4 py-3 text-sm text-primary flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
+            {timeSlot ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid var(--primary-100)",
+                  background: "var(--primary-50)",
+                  color: "var(--primary-600)",
+                  fontSize: 13,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <CheckCircle2 size={15} />
                 Selected {selectedDayLabel} at {timeSlot}.
               </div>
-            )}
+            ) : null}
           </div>
 
-          <div className="rounded-2xl bg-surface-container-low p-5 sm:p-6">
-            <label className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-3 block">
-              Phone number
-            </label>
-            <div className="relative">
-              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant pointer-events-none" />
+          {/* Phone */}
+          <div>
+            <label className="field-label">Phone number</label>
+            <div style={{ position: "relative" }}>
+              <Phone
+                size={15}
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--text-subtle)",
+                  pointerEvents: "none",
+                }}
+              />
               <input
                 type="tel"
                 value={phone}
@@ -569,13 +872,16 @@ export function BookingForm({
                 placeholder="+1 555 123 4567"
                 autoComplete="tel"
                 required
-                className="w-full pl-11 pr-4 py-4 rounded-xl bg-surface-container-highest border-0 text-on-surface placeholder:text-on-surface-variant/70 focus:outline-none focus:ring-1 focus:ring-primary transition"
+                className="input"
+                style={{ paddingLeft: 38 }}
               />
             </div>
             <p
-              className={`text-xs mt-2 ${
-                phone && !phoneOk ? "text-error" : "text-on-surface-variant"
-              }`}
+              className="t-small"
+              style={{
+                marginTop: 6,
+                color: phone && !phoneOk ? "var(--danger)" : undefined,
+              }}
             >
               {phone && !phoneOk
                 ? "That doesn't look like a valid phone number."
@@ -587,19 +893,31 @@ export function BookingForm({
 
       {/* Step 4: Review */}
       {step === 4 && (
-        <div className="space-y-4">
+        <div className="anim-fade" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-1">Step 4</p>
-            <h2 className="font-headline text-2xl font-semibold">Review & confirm.</h2>
+            <p className="t-eyebrow">Step 4</p>
+            <h2
+              style={{
+                margin: "6px 0 0",
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Review &amp; confirm.
+            </h2>
           </div>
-          <div className="rounded-2xl bg-surface-container-low p-6 space-y-4">
+          <div
+            className="card"
+            style={{ padding: 20, display: "flex", flexDirection: "column", gap: 4 }}
+          >
             {[
-              { label: "Clinic", value: selectedClinic?.name, icon: Building2 },
+              { label: "Clinic", value: selectedClinic?.name, Ic: Building2 },
               {
                 label: "Doctor",
                 value: selectedDoctor ? doctorDisplayName(selectedDoctor) : undefined,
                 sub: selectedDoctor?.specialty,
-                icon: Stethoscope,
+                Ic: Stethoscope,
               },
               {
                 label: "When",
@@ -607,24 +925,65 @@ export function BookingForm({
                   selectedDayLabel && timeSlot
                     ? `${selectedDayLabel} · ${timeSlot}`
                     : "—",
-                icon: CalendarClock,
+                Ic: CalendarClock,
               },
               {
                 label: "Phone",
                 value: phone || "—",
-                icon: Phone,
+                Ic: Phone,
               },
             ].map((row) => (
-              <div key={row.label} className="flex items-start gap-4 py-2">
-                <span className="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center flex-shrink-0">
-                  <row.icon className="w-4 h-4 text-primary" />
+              <div
+                key={row.label}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 14,
+                  padding: "10px 0",
+                  borderTop: "1px solid var(--outline-variant)",
+                }}
+              >
+                <span
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: "var(--primary-50)",
+                    color: "var(--primary-600)",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <row.Ic size={16} />
                 </span>
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-on-surface-variant">{row.label}</p>
-                  <p className="font-medium">{row.value ?? "—"}</p>
-                  {"sub" in row && row.sub && (
-                    <p className="text-xs text-on-surface-variant">{row.sub}</p>
-                  )}
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 11,
+                      color: "var(--text-subtle)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {row.label}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 14, fontWeight: 500 }}>
+                    {row.value ?? "—"}
+                  </p>
+                  {"sub" in row && row.sub ? (
+                    <p
+                      style={{
+                        margin: "2px 0 0",
+                        fontSize: 12,
+                        color: "var(--text-subtle)",
+                      }}
+                    >
+                      {row.sub}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -632,15 +991,23 @@ export function BookingForm({
         </div>
       )}
 
-      {/* Nav */}
-      <div className="flex items-center justify-between mt-8">
+      {/* Footer nav */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 28,
+          gap: 12,
+        }}
+      >
         <button
           type="button"
           onClick={() => setStep((s) => Math.max(1, s - 1))}
           disabled={step === 1 || pending}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-surface-container-highest text-on-surface font-medium text-sm hover:bg-surface-bright transition disabled:opacity-40 disabled:cursor-not-allowed"
+          className="btn ghost"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft size={14} />
           Back
         </button>
 
@@ -654,19 +1021,19 @@ export function BookingForm({
               (step === 2 && !doctorId) ||
               (step === 3 && (!timeSlot || !phoneOk))
             }
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold text-sm shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn primary"
           >
             Continue
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight size={14} />
           </button>
         ) : (
           <button
             type="button"
             onClick={submit}
             disabled={pending}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed font-semibold text-sm shadow-emerald hover:brightness-110 active:scale-[0.98] transition disabled:opacity-60"
+            className="btn primary"
           >
-            {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            {pending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             {pending ? "Booking…" : "Confirm booking"}
           </button>
         )}
@@ -677,7 +1044,7 @@ export function BookingForm({
 
 function SlotSection({
   title,
-  Icon,
+  Ic,
   slots,
   dayISO,
   bookedSlots,
@@ -686,7 +1053,7 @@ function SlotSection({
   onChange,
 }: {
   title: string;
-  Icon: typeof Sun;
+  Ic: typeof Sun;
   slots: string[];
   dayISO: string;
   bookedSlots: string[];
@@ -696,30 +1063,76 @@ function SlotSection({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-2 mb-3 text-on-surface-variant">
-        <Icon className="w-4 h-4" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider">{title}</h3>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          color: "var(--text-muted)",
+          marginBottom: 10,
+        }}
+      >
+        <Ic size={14} />
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {title}
+        </span>
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+          gap: 6,
+        }}
+      >
         {slots.map((slot) => {
           const isBooked = bookedSlots.includes(slot);
           const isUnavailable = unavailableSlots.includes(slot);
           const isPast = isSlotPast(dayISO, slot);
           const disabled = isUnavailable || isBooked || isPast;
           const active = value === slot;
+
           if (disabled) {
-            // Label priority: Past > Booked > Unavailable (outside hours / on break)
             const label = isPast ? "Past" : isBooked ? "Booked" : "Unavailable";
             return (
               <button
                 key={slot}
                 type="button"
                 disabled
-                className="py-3 px-2 rounded-xl bg-surface-container-lowest text-on-surface-variant/50 ring-1 ring-outline-variant/20 flex flex-col items-center justify-center cursor-not-allowed relative overflow-hidden"
+                style={{
+                  padding: "9px 0",
+                  borderRadius: 8,
+                  border: "1px solid var(--outline-variant)",
+                  background: "var(--bg-muted)",
+                  color: "var(--text-faint)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "not-allowed",
+                  textDecoration: "line-through",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 0,
+                }}
+                title={label}
               >
-                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(120,120,120,0.08)_10px,rgba(120,120,120,0.08)_20px)]" />
-                <span className="font-medium text-sm relative z-10 line-through">{slot}</span>
-                <span className="text-[10px] mt-0.5 relative z-10">{label}</span>
+                <span>{slot}</span>
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 500,
+                    textDecoration: "none",
+                    opacity: 0.7,
+                  }}
+                >
+                  {label}
+                </span>
               </button>
             );
           }
@@ -728,14 +1141,21 @@ function SlotSection({
               key={slot}
               type="button"
               onClick={() => onChange(slot)}
-              className={`py-3 px-2 rounded-xl flex flex-col items-center justify-center transition ${
-                active
-                  ? "bg-primary text-on-primary-fixed ring-2 ring-primary shadow-emerald scale-[1.02]"
-                  : "bg-surface-container ring-1 ring-outline-variant/30 hover:bg-surface-container-highest hover:scale-[1.02]"
-              }`}
+              style={{
+                padding: "9px 0",
+                borderRadius: 8,
+                border: active
+                  ? "1.5px solid var(--primary)"
+                  : "1px solid var(--outline-variant)",
+                background: active ? "var(--primary)" : "var(--surface-bright)",
+                color: active ? "#fff" : "var(--on-surface)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all .12s ease",
+              }}
             >
-              <span className="font-medium text-sm">{slot}</span>
-              {active && <span className="text-[10px] mt-0.5 font-semibold">Selected</span>}
+              {slot}
             </button>
           );
         })}
@@ -743,6 +1163,3 @@ function SlotSection({
     </div>
   );
 }
-
-// Unused export kept for legacy; Moon icon imported but not needed.
-void Moon;

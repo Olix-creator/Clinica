@@ -407,7 +407,15 @@ function UpcomingCard({ appointment }: { appointment: AppointmentWithRelations }
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         <Link
-          href="/booking"
+          href={(() => {
+            // Reschedule reuses the master /booking flow with the existing
+            // clinic + doctor pre-selected so the user lands directly on
+            // the time-pick step with identical UI to a brand-new booking.
+            const p = new URLSearchParams();
+            if (appointment.clinic?.id) p.set("clinicId", appointment.clinic.id);
+            if (appointment.doctor_id) p.set("doctorId", appointment.doctor_id);
+            return `/booking${p.toString() ? `?${p.toString()}` : ""}`;
+          })()}
           className="btn secondary sm"
           style={{ width: "100%" }}
         >

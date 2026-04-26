@@ -199,7 +199,9 @@ function Hero() {
             and let your team run the day from a single dashboard.
           </p>
           <div style={{ display: "flex", gap: 12, marginTop: 32, flexWrap: "wrap" }}>
-            <Link href="/booking" className="btn primary lg">
+            {/* Booking always starts with picking a clinic — single
+                unified flow, no standalone booking page. */}
+            <Link href="/search" className="btn primary lg">
               Book appointment <ArrowRight size={16} />
             </Link>
             <Link href="/search" className="btn secondary lg">

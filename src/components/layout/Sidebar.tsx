@@ -55,19 +55,19 @@ export default function Sidebar({
   const NAV: Record<Role, NavEntry[]> = {
     patient: [
       { href: "/patient", label: "Overview", icon: Home },
-      { href: "/booking", label: "Book visit", icon: Plus },
+      // Booking starts at /search — patients pick a clinic, then book
+      // inline on /clinic/[id]. No standalone booking page.
+      { href: "/search", label: "Book visit", icon: Plus },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
     doctor: [
       { href: "/doctor", label: "Today", icon: Home },
       { href: "/patients", label: "Patients", icon: Users },
-      { href: "/booking", label: "New booking", icon: Plus },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
     receptionist: [
       { href: "/receptionist", label: "Schedule", icon: Calendar },
       { href: "/patients", label: "Patients", icon: Users },
-      { href: "/booking", label: "New booking", icon: Plus },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   };

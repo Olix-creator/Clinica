@@ -56,6 +56,11 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          last_geocoded_at: string | null
+          latitude: number | null
+          location_accuracy_m: number | null
+          location_source: string | null
+          longitude: number | null
           monthly_appointments_count: number
           name: string
           phone: string | null
@@ -71,6 +76,11 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          last_geocoded_at?: string | null
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_source?: string | null
+          longitude?: number | null
           monthly_appointments_count?: number
           name: string
           phone?: string | null
@@ -86,6 +96,11 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          last_geocoded_at?: string | null
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_source?: string | null
+          longitude?: number | null
           monthly_appointments_count?: number
           name?: string
           phone?: string | null
@@ -258,6 +273,30 @@ export type Database = {
           full_name: string | null
           email: string | null
           role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      search_clinics_nearby: {
+        Args: {
+          p_city?: string
+          p_latitude: number
+          p_limit?: number
+          p_longitude: number
+          p_query?: string
+          p_radius_km?: number
+          p_specialty?: string
+        }
+        Returns: {
+          address: string | null
+          city: string | null
+          description: string | null
+          distance_km: number
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          phone: string | null
+          specialty: string | null
+          status: string
         }[]
       }
     }

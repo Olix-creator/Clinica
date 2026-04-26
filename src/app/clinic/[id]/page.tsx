@@ -8,12 +8,18 @@ import {
   Star,
   Heart,
   Shield,
-  ArrowRight,
 } from "lucide-react";
 import { getClinicById, listPublicDoctorsByClinic } from "@/lib/data/clinics";
 import { createClient } from "@/lib/supabase/server";
 import { PatientNav } from "@/components/public/PatientNav";
 import { PublicFooter } from "@/components/public/PublicFooter";
+import { ClinicLocationMap } from "@/components/public/ClinicLocationMap";
+import { ClinicBookingPanel } from "@/components/public/ClinicBookingPanel";
+import {
+  bookAppointment,
+  loadBookedSlots,
+  findNextAvailable,
+} from "./booking-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -57,10 +63,13 @@ function avatarInitials(name: string | null | undefined): string {
  */
 export default async function ClinicPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ doctor?: string; date?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
   const clinic = await getClinicById(id);
   if (!clinic) notFound();
 
@@ -72,25 +81,22 @@ export default async function ClinicPage({
   const isSignedIn = Boolean(userData.user);
 
   const verified = clinic.status === "approved";
-  const bookHref = isSignedIn
-    ? `/booking?clinicId=${clinic.id}`
-    : `/login?redirect=${encodeURIComponent(`/booking?clinicId=${clinic.id}`)}`;
 
-  // Three "Next available" placeholder slots — design shows three pre-baked
-  // suggestions; the real slot data lives behind the booking form's
-  // availability call. Keeping it static here matches the design without
-  // pretending we have a fast slot lookup at this hop.
-  const today = new Date();
-  const day = (offsetDays: number, hh: string) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + offsetDays);
-    return `${d.toLocaleDateString("en", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    })} · ${hh}`;
-  };
-  const suggestions = [day(1, "09:00"), day(1, "10:30"), day(2, "14:00")];
+  // Pull the patient's saved phone (if signed in) so the inline booking
+  // form can pre-fill it.
+  let initialPhone = "";
+  if (isSignedIn && userData.user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("phone")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+    initialPhone = profile?.phone ?? "";
+  }
+
+  // Anchor link the hero "Book appointment" CTA jumps to so users on
+  // long pages don't lose their place.
+  const bookAnchor = "#book";
 
   return (
     <div data-screen-label="Clinic detail" style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
@@ -217,9 +223,9 @@ export default async function ClinicPage({
               <button type="button" className="btn secondary" disabled>
                 <Heart size={15} /> Save
               </button>
-              <Link href={bookHref} className="btn primary lg">
+              <a href={bookAnchor} className="btn primary lg">
                 Book appointment
-              </Link>
+              </a>
             </div>
           </div>
         </div>
@@ -260,11 +266,9 @@ export default async function ClinicPage({
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {doctors.map((d) => {
-                  const docHref = isSignedIn
-                    ? `/booking?clinicId=${clinic.id}&doctorId=${d.id}`
-                    : `/login?redirect=${encodeURIComponent(
-                        `/booking?clinicId=${clinic.id}&doctorId=${d.id}`,
-                      )}`;
+                  // Doctor card "Book" anchor pre-fills the inline panel via
+                  // `?doctor=…` so the user lands ready-to-pick-time.
+                  const docHref = `?doctor=${d.id}#book`;
                   return (
                     <div
                       key={d.id}
@@ -296,9 +300,9 @@ export default async function ClinicPage({
                           {d.specialty ?? clinic.specialty ?? "General Practice"}
                         </div>
                       </div>
-                      <Link href={docHref} className="btn secondary sm">
+                      <a href={docHref} className="btn secondary sm">
                         Book
-                      </Link>
+                      </a>
                     </div>
                   );
                 })}
@@ -310,50 +314,51 @@ export default async function ClinicPage({
             <h2 className="t-h3" style={{ marginBottom: 16 }}>
               Location
             </h2>
-            <div className="ph-stripe" style={{ height: 240, borderRadius: 14 }}>
-              <span>map · {clinic.address ?? clinic.city ?? "—"}</span>
+            <ClinicLocationMap
+              clinicId={clinic.id}
+              clinicName={clinic.name}
+              latitude={clinic.latitude}
+              longitude={clinic.longitude}
+              city={clinic.city}
+              specialty={clinic.specialty}
+            />
+            <div style={{ marginTop: 10 }}>
+              <a
+                href={
+                  clinic.latitude != null && clinic.longitude != null
+                    ? `https://www.google.com/maps/dir/?api=1&destination=${clinic.latitude},${clinic.longitude}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        `${clinic.name} ${clinic.city ?? ""}`.trim(),
+                      )}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="btn secondary sm"
+              >
+                Open directions
+              </a>
             </div>
           </section>
         </div>
 
         {/* Sticky right rail */}
         <aside style={{ position: "sticky", top: 96, alignSelf: "start" }}>
-          <div className="card" style={{ padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-              Next available
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {suggestions.map((slot, i) => (
-                <Link
-                  key={slot}
-                  href={bookHref}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "12px 14px",
-                    borderRadius: 10,
-                    border: "1px solid var(--outline-variant)",
-                    textDecoration: "none",
-                    color: "var(--on-surface)",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    background: i === 0 ? "var(--primary-50)" : "var(--surface-bright)",
-                  }}
-                >
-                  <span>{slot}</span>
-                  <ArrowRight size={14} style={{ color: "var(--primary)" }} />
-                </Link>
-              ))}
-            </div>
-            <Link
-              href={bookHref}
-              className="btn primary"
-              style={{ width: "100%", marginTop: 16 }}
-            >
-              See all slots
-            </Link>
-          </div>
+          <ClinicBookingPanel
+            clinicId={clinic.id}
+            clinicName={clinic.name}
+            doctors={doctors.map((d) => ({
+              id: d.id,
+              name: d.name,
+              specialty: d.specialty,
+            }))}
+            isSignedIn={isSignedIn}
+            initialPhone={initialPhone}
+            initialDoctorId={sp.doctor ?? ""}
+            initialDateISO={sp.date}
+            bookAppointment={bookAppointment}
+            loadSlots={loadBookedSlots}
+            findSuggestion={findNextAvailable}
+          />
           <div className="card" style={{ padding: 20, marginTop: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
               Contact

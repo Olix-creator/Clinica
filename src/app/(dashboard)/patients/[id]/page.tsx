@@ -104,7 +104,7 @@ export default async function PatientDetailPage({
                 <Phone size={14} /> Call
               </a>
             ) : null}
-            <Link href="/booking" className="btn primary">
+            <Link href="/search" className="btn primary">
               <Plus size={14} /> Book visit
             </Link>
           </>

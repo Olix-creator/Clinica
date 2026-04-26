@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 export type Clinic = Database["public"]["Tables"]["clinics"]["Row"];
+export type ClinicSearchResult = Clinic & { distance_km?: number | null };
 
 /**
  * Doctor row shape we hand to public pages. Intentionally narrow —
@@ -55,11 +56,13 @@ export async function searchClinics({
   city?: string;
   specialty?: string;
   limit?: number;
-} = {}): Promise<Clinic[]> {
+} = {}): Promise<ClinicSearchResult[]> {
+  const startedAt = Date.now();
   const supabase = await createClient();
   let q = supabase
     .from("clinics")
     .select("*")
+    .eq("status", "approved")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -86,7 +89,59 @@ export async function searchClinics({
     console.error("[clinica] searchClinics:", error.message);
     return [];
   }
+  const elapsedMs = Date.now() - startedAt;
+  if (elapsedMs > 500) {
+    console.warn("[clinica] searchClinics slow query:", { elapsedMs, city, specialty });
+  }
   return data ?? [];
+}
+
+export async function searchClinicsNearby({
+  latitude,
+  longitude,
+  radiusKm = 10,
+  query,
+  city,
+  specialty,
+  limit = 48,
+}: {
+  latitude: number;
+  longitude: number;
+  radiusKm?: number;
+  query?: string;
+  city?: string;
+  specialty?: string;
+  limit?: number;
+}): Promise<ClinicSearchResult[]> {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+  const startedAt = Date.now();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("search_clinics_nearby", {
+    p_latitude: latitude,
+    p_longitude: longitude,
+    p_radius_km: radiusKm,
+    p_city: city?.trim() || null,
+    p_specialty: specialty?.trim() || null,
+    p_query: query?.trim() || null,
+    p_limit: limit,
+  });
+  if (error) {
+    console.error("[clinica] searchClinicsNearby:", error.message);
+    return [];
+  }
+  const elapsedMs = Date.now() - startedAt;
+  if (elapsedMs > 500) {
+    console.warn("[clinica] searchClinicsNearby slow query:", {
+      elapsedMs,
+      radiusKm,
+      city,
+      specialty,
+    });
+  }
+  return ((data ?? []) as ClinicSearchResult[]).map((row) => ({
+    ...row,
+    distance_km: row.distance_km ?? null,
+  }));
 }
 
 /**
@@ -99,6 +154,7 @@ export async function getClinicById(id: string): Promise<Clinic | null> {
     .from("clinics")
     .select("*")
     .eq("id", id)
+    .eq("status", "approved")
     .maybeSingle();
   if (error) {
     console.error("[clinica] getClinicById:", error.message);
@@ -193,6 +249,11 @@ export async function createClinic({
   specialty,
   city,
   description,
+  latitude,
+  longitude,
+  locationSource,
+  locationAccuracyM,
+  lastGeocodedAt,
 }: {
   name: string;
   phone?: string;
@@ -200,6 +261,11 @@ export async function createClinic({
   specialty?: string;
   city?: string;
   description?: string;
+  latitude?: number;
+  longitude?: number;
+  locationSource?: "map_pin" | "address_geocode" | "manual_coords";
+  locationAccuracyM?: number;
+  lastGeocodedAt?: string;
 }): Promise<{ data: Clinic | null; error: string | null }> {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -218,6 +284,13 @@ export async function createClinic({
       specialty: specialty?.trim() || null,
       city: city?.trim() || null,
       description: description?.trim() || null,
+      latitude: Number.isFinite(latitude) ? latitude : null,
+      longitude: Number.isFinite(longitude) ? longitude : null,
+      location_source: locationSource ?? null,
+      location_accuracy_m: Number.isFinite(locationAccuracyM)
+        ? locationAccuracyM
+        : null,
+      last_geocoded_at: lastGeocodedAt ?? null,
       // status / plan_type / trial_end_date / monthly_appointments_count
       // come from DB defaults so we always get a consistent clock start.
     })
@@ -247,6 +320,11 @@ export async function updateClinicProfile(
     city?: string;
     specialty?: string;
     description?: string;
+    latitude?: number;
+    longitude?: number;
+    location_source?: "map_pin" | "address_geocode" | "manual_coords";
+    location_accuracy_m?: number;
+    last_geocoded_at?: string;
   },
 ): Promise<{ data: Clinic | null; error: string | null }> {
   if (!clinicId) return { data: null, error: "Missing clinic id" };
@@ -265,9 +343,20 @@ export async function updateClinicProfile(
     city: norm(patch.city),
     specialty: norm(patch.specialty),
     description: norm(patch.description),
+    latitude: Number.isFinite(patch.latitude) ? patch.latitude : undefined,
+    longitude: Number.isFinite(patch.longitude) ? patch.longitude : undefined,
+    location_source: patch.location_source,
+    location_accuracy_m: Number.isFinite(patch.location_accuracy_m)
+      ? patch.location_accuracy_m
+      : undefined,
+    last_geocoded_at: patch.last_geocoded_at,
   };
 
-  if (update.name === undefined) delete (update as Record<string, unknown>).name;
+  for (const key of Object.keys(update) as Array<keyof typeof update>) {
+    if (update[key] === undefined) {
+      delete (update as Record<string, unknown>)[key];
+    }
+  }
 
   const { data, error } = await supabase
     .from("clinics")
@@ -281,6 +370,64 @@ export async function updateClinicProfile(
     return { data: null, error: error.message };
   }
   return { data, error: null };
+}
+
+/**
+ * Hard-delete the clinic. Migration 0015 added an RLS DELETE policy
+ * scoped to `auth.uid() = created_by`, so this call is rejected by
+ * Postgres unless the caller actually created the clinic. We do a
+ * pre-flight check too so we can return a friendly error instead of a
+ * raw RLS rejection if a non-owner somehow gets a button.
+ *
+ * Cascading rules from prior migrations:
+ *   - doctors / clinic_members → ON DELETE CASCADE  (auto-removed)
+ *   - appointments              → ON DELETE RESTRICT  (blocks the call;
+ *                                  caller must cancel them first)
+ *
+ * If the RESTRICT triggers we surface a clear "you have appointments
+ * still attached" message rather than the cryptic 23503 fk error.
+ */
+export async function deleteClinic(
+  clinicId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!clinicId) return { ok: false, error: "Missing clinic id" };
+  const supabase = await createClient();
+
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: "Not authenticated" };
+
+  // Pre-flight: load the clinic's created_by so we can short-circuit
+  // and return a friendly error if the caller isn't the creator.
+  const { data: row, error: lookupErr } = await supabase
+    .from("clinics")
+    .select("id, created_by")
+    .eq("id", clinicId)
+    .maybeSingle();
+  if (lookupErr) {
+    console.error("[clinica] deleteClinic lookup:", lookupErr.message);
+    return { ok: false, error: lookupErr.message };
+  }
+  if (!row) return { ok: false, error: "Clinic not found" };
+  if (row.created_by !== userData.user.id) {
+    return { ok: false, error: "Only the clinic creator can delete it." };
+  }
+
+  const { error } = await supabase
+    .from("clinics")
+    .delete()
+    .eq("id", clinicId);
+  if (error) {
+    console.error("[clinica] deleteClinic:", error.message, error.code);
+    if (error.code === "23503") {
+      return {
+        ok: false,
+        error:
+          "This clinic still has appointments attached. Cancel them first, then try again.",
+      };
+    }
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 /**

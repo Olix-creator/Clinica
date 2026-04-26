@@ -19,6 +19,7 @@ import {
   ClinicProfileEditor,
   type EditableClinic,
 } from "@/components/settings/ClinicProfileEditor";
+import { DeleteClinicButton } from "@/components/settings/DeleteClinicButton";
 import { DashTopbar } from "@/components/layout/DashTopbar";
 import SignOutButton from "@/components/layout/SignOutButton";
 
@@ -87,17 +88,20 @@ export default async function SettingsPage() {
   const phone = phoneRow?.phone ?? null;
 
   // Pull the full clinic rows (with migration 0013 fields) so the owner can
-  // edit phone/address/etc and see trial status. We only run this query if
-  // the user actually owns clinics.
-  let editableClinics: EditableClinic[] = [];
+  // edit phone/address/etc and see trial status. We also pull `created_by`
+  // so we can decide which clinics expose the delete button — RLS
+  // (migration 0015) gates the actual SQL DELETE to that same column.
+  let editableClinics: (EditableClinic & { created_by: string })[] = [];
   if (ownedClinicIds.length > 0) {
     const { data: rows } = await supabase
       .from("clinics")
       .select(
-        "id, name, phone, address, city, specialty, description, status, plan_type, trial_end_date, monthly_appointments_count",
+        "id, name, phone, address, city, specialty, description, latitude, longitude, status, plan_type, trial_end_date, monthly_appointments_count, created_by",
       )
       .in("id", ownedClinicIds);
-    editableClinics = (rows ?? []) as EditableClinic[];
+    editableClinics = (rows ?? []) as (EditableClinic & {
+      created_by: string;
+    })[];
   }
 
   const joined = new Date(profile.created_at).toLocaleDateString(undefined, {
@@ -193,9 +197,30 @@ export default async function SettingsPage() {
             </div>
           </div>
           <div className="space-y-3">
-            {editableClinics.map((c) => (
-              <ClinicProfileEditor key={c.id} clinic={c} />
-            ))}
+            {editableClinics.map((c) => {
+              const isCreator = c.created_by === profile.id;
+              return (
+                <div key={c.id} className="space-y-2">
+                  <ClinicProfileEditor clinic={c} />
+                  {isCreator ? (
+                    <div className="flex items-center justify-between rounded-2xl border border-error/30 bg-error-container/10 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface">
+                          Danger zone
+                        </p>
+                        <p className="text-xs text-on-surface-variant">
+                          Permanently delete this clinic. Only the creator can do this.
+                        </p>
+                      </div>
+                      <DeleteClinicButton
+                        clinicId={c.id}
+                        clinicName={c.name}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

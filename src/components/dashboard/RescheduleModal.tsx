@@ -7,7 +7,7 @@ import { CalendarClock, Loader2, Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { TIME_SLOTS } from "@/lib/appointments/slots";
-import { findNextAvailable } from "@/app/(dashboard)/booking/actions";
+import { findNextAvailable } from "@/app/clinic/[id]/booking-actions";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 

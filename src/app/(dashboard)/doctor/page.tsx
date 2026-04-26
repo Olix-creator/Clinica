@@ -171,11 +171,7 @@ export default async function DoctorPage() {
             ? `You have ${total} ${total === 1 ? "patient" : "patients"} scheduled today.`
             : fmtFullDate()
         }
-        actions={
-          <Link href="/booking" className="btn primary">
-            <Plus size={15} /> New booking
-          </Link>
-        }
+        actions={null}
       />
 
       <div
@@ -265,8 +261,8 @@ export default async function DoctorPage() {
                   {cancelledCount > 0 ? ` · ${cancelledCount} cancelled` : ""}
                 </div>
               </div>
-              <Link href="/booking" className="btn ghost sm">
-                Book new <ArrowRight size={13} />
+              <Link href="/patients" className="btn ghost sm">
+                View patients <ArrowRight size={13} />
               </Link>
             </div>
 
@@ -300,14 +296,10 @@ export default async function DoctorPage() {
                   gap: 8,
                 }}
               >
-                <QuickAction
-                  Ic={Plus}
-                  label="New booking"
-                  href="/booking"
-                />
                 <QuickAction Ic={User} label="Patients" href="/patients" />
                 <QuickAction Ic={Clock} label="Edit hours" href="/settings" />
                 <QuickAction Ic={Mail} label="Settings" href="/settings" />
+                <QuickAction Ic={Plus} label="Profile" href="/profile" />
               </div>
             </div>
 

@@ -20,19 +20,20 @@ const NAV: Record<Role, Item[]> = {
   patient: [
     { href: "/patient", label: "Home", icon: LayoutDashboard },
     { href: "/patient#upcoming", label: "Visits", icon: CalendarCheck },
-    { href: "/booking", label: "Book", icon: CalendarPlus },
+    // Booking always starts at /search → /clinic/[id] inline panel.
+    { href: "/search", label: "Book", icon: CalendarPlus },
     { href: "/settings", label: "Settings", icon: Settings },
   ],
   doctor: [
     { href: "/doctor", label: "Today", icon: Stethoscope },
     { href: "/patients", label: "Patients", icon: Users },
-    { href: "/booking", label: "Book", icon: CalendarPlus },
+    { href: "/analytics", label: "Insights", icon: BarChart3 },
     { href: "/settings", label: "Settings", icon: Settings },
   ],
   receptionist: [
     { href: "/receptionist", label: "Schedule", icon: ClipboardList },
+    { href: "/patients", label: "Patients", icon: Users },
     { href: "/analytics", label: "Insights", icon: BarChart3 },
-    { href: "/booking", label: "Book", icon: CalendarPlus },
     { href: "/settings", label: "Settings", icon: Settings },
   ],
 };

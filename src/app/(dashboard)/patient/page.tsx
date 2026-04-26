@@ -119,7 +119,7 @@ export default async function PatientPage() {
           </div>
         </div>
         <Link
-          href="/booking"
+          href="/search"
           className="btn primary sm"
           style={{ alignSelf: "flex-start", marginTop: 6 }}
         >
@@ -193,7 +193,7 @@ export default async function PatientPage() {
           <p className="t-small" style={{ marginBottom: 14 }}>
             Book your next appointment to see it here.
           </p>
-          <Link href="/booking" className="btn primary sm">
+          <Link href="/search" className="btn primary sm">
             <Plus size={13} /> Book appointment
           </Link>
         </div>
@@ -408,13 +408,16 @@ function UpcomingCard({ appointment }: { appointment: AppointmentWithRelations }
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         <Link
           href={(() => {
-            // Reschedule reuses the master /booking flow with the existing
-            // clinic + doctor pre-selected so the user lands directly on
-            // the time-pick step with identical UI to a brand-new booking.
+            // Reschedule reuses the inline booking panel on /clinic/[id]
+            // — the only booking UI in the app — with the existing
+            // doctor pre-selected via `?doctor=…`. This keeps the form
+            // identical to a brand-new booking from /search.
+            if (!appointment.clinic?.id) return "/search";
             const p = new URLSearchParams();
-            if (appointment.clinic?.id) p.set("clinicId", appointment.clinic.id);
-            if (appointment.doctor_id) p.set("doctorId", appointment.doctor_id);
-            return `/booking${p.toString() ? `?${p.toString()}` : ""}`;
+            if (appointment.doctor_id) p.set("doctor", appointment.doctor_id);
+            return `/clinic/${appointment.clinic.id}${
+              p.toString() ? `?${p.toString()}` : ""
+            }#book`;
           })()}
           className="btn secondary sm"
           style={{ width: "100%" }}
@@ -422,7 +425,11 @@ function UpcomingCard({ appointment }: { appointment: AppointmentWithRelations }
           Reschedule
         </Link>
         <Link
-          href="/booking"
+          href={
+            appointment.clinic?.id
+              ? `/clinic/${appointment.clinic.id}`
+              : "/search"
+          }
           className="btn secondary sm"
           style={{ width: "100%", color: "var(--danger)", borderColor: "var(--danger)" }}
         >

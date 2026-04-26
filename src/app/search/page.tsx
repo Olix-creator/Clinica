@@ -2,11 +2,14 @@ import Link from "next/link";
 import { Search, MapPin, Stethoscope, Building2, Star, ArrowRight, Shield } from "lucide-react";
 import {
   searchClinics,
+  searchClinicsNearby,
   listClinicSpecialties,
-  type Clinic,
+  type ClinicSearchResult,
 } from "@/lib/data/clinics";
 import { PatientNav } from "@/components/public/PatientNav";
 import { PublicFooter } from "@/components/public/PublicFooter";
+import { NearMeButton } from "@/components/public/NearMeButton";
+import { ClinicMapView } from "@/components/public/ClinicMapView";
 
 export const dynamic = "force-dynamic";
 
@@ -45,15 +48,48 @@ const ACCENT_POOL = [
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ city?: string; specialty?: string; q?: string }>;
+  searchParams: Promise<{
+    city?: string;
+    specialty?: string;
+    q?: string;
+    lat?: string;
+    lon?: string;
+    radiusKm?: string;
+    view?: string;
+  }>;
 }) {
   const params = await searchParams;
   const city = params.city?.trim() ?? "";
   const specialty = params.specialty?.trim() ?? "";
   const q = params.q?.trim() ?? "";
+  const latitude = Number(params.lat);
+  const longitude = Number(params.lon);
+  const hasUserCoords = Number.isFinite(latitude) && Number.isFinite(longitude);
+  const radiusKm = Number(params.radiusKm);
+  const viewMode = params.view === "map" ? "map" : "list";
+  const listParams = new URLSearchParams();
+  const mapParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (!value) continue;
+    if (key === "view") continue;
+    listParams.set(key, value);
+    mapParams.set(key, value);
+  }
+  mapParams.set("view", "map");
+  const listHref = `/search${listParams.size > 0 ? `?${listParams.toString()}` : ""}`;
+  const mapHref = `/search?${mapParams.toString()}`;
 
   const [clinics, specialties] = await Promise.all([
-    searchClinics({ city, specialty, query: q }),
+    hasUserCoords
+      ? searchClinicsNearby({
+          latitude,
+          longitude,
+          radiusKm: Number.isFinite(radiusKm) ? radiusKm : 10,
+          city,
+          specialty,
+          query: q,
+        })
+      : searchClinics({ city, specialty, query: q }),
     listClinicSpecialties(),
   ]);
 
@@ -187,6 +223,9 @@ export default async function SearchPage({
               );
             })}
           </div>
+          <div style={{ marginTop: 14 }}>
+            <NearMeButton />
+          </div>
         </div>
       </div>
 
@@ -207,27 +246,68 @@ export default async function SearchPage({
             found
             {city ? ` in ${city}` : ""}
             {specialty ? ` · ${specialty}` : ""}
+            {hasUserCoords ? " · sorted by distance" : ""}
           </div>
         </div>
 
         {clinics.length === 0 ? (
           <EmptyState />
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {clinics.map((c, i) => (
-              <ClinicCard
-                key={c.id}
-                clinic={c}
-                accent={ACCENT_POOL[i % ACCENT_POOL.length]}
-              />
-            ))}
-          </div>
+          <>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <Link
+                href={listHref}
+                className="chip"
+                style={{
+                  textDecoration: "none",
+                  background: viewMode === "list" ? "var(--primary-50)" : "var(--surface-bright)",
+                  color: viewMode === "list" ? "var(--primary-600)" : "var(--text-muted)",
+                  borderColor: viewMode === "list" ? "var(--primary-100)" : "var(--outline-variant)",
+                }}
+              >
+                List + Map
+              </Link>
+              <Link
+                href={mapHref}
+                className="chip"
+                style={{
+                  textDecoration: "none",
+                  background: viewMode === "map" ? "var(--primary-50)" : "var(--surface-bright)",
+                  color: viewMode === "map" ? "var(--primary-600)" : "var(--text-muted)",
+                  borderColor: viewMode === "map" ? "var(--primary-100)" : "var(--outline-variant)",
+                }}
+              >
+                Map only
+              </Link>
+            </div>
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: viewMode === "map" ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)" }}>
+              {viewMode === "list" ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                    gap: 16,
+                    alignSelf: "start",
+                  }}
+                >
+                  {clinics.map((c, i) => (
+                    <ClinicCard
+                      key={c.id}
+                      clinic={c}
+                      accent={ACCENT_POOL[i % ACCENT_POOL.length]}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              <div style={{ position: "sticky", top: 84, alignSelf: "start" }}>
+                <ClinicMapView
+                  clinics={clinics}
+                  focusLat={hasUserCoords ? latitude : undefined}
+                  focusLon={hasUserCoords ? longitude : undefined}
+                />
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -236,7 +316,7 @@ export default async function SearchPage({
   );
 }
 
-function ClinicCard({ clinic, accent }: { clinic: Clinic; accent: string }) {
+function ClinicCard({ clinic, accent }: { clinic: ClinicSearchResult; accent: string }) {
   // Status='approved' means the public listing — design shows that as "Verified".
   const verified = clinic.status === "approved";
   const description =
@@ -341,6 +421,11 @@ function ClinicCard({ clinic, accent }: { clinic: Clinic; accent: string }) {
             <MapPin size={12} />
             {clinic.city}
             {clinic.address ? ` · ${clinic.address.split(",")[0]}` : ""}
+          </div>
+        ) : null}
+        {clinic.distance_km != null ? (
+          <div style={{ fontSize: 12, color: "var(--primary-600)", fontWeight: 600 }}>
+            {clinic.distance_km.toFixed(1)} km away
           </div>
         ) : null}
         <p

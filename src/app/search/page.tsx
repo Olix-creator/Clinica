@@ -104,8 +104,8 @@ export default async function SearchPage({
           borderBottom: "1px solid var(--outline-variant)",
         }}
       >
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 32px 24px" }}>
-          <h1 className="t-h2" style={{ margin: 0 }}>
+        <div className="resp-page-pad" style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 32px 24px" }}>
+          <h1 className="t-h2 resp-h2" style={{ margin: 0 }}>
             Find a clinic near you.
           </h1>
           <p className="t-body" style={{ marginTop: 8 }}>
@@ -115,7 +115,7 @@ export default async function SearchPage({
           <form
             method="get"
             action="/search"
-            className="card"
+            className="card resp-search-bar"
             style={{
               marginTop: 24,
               padding: 8,
@@ -230,7 +230,7 @@ export default async function SearchPage({
       </div>
 
       {/* Results */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 32px 80px", flex: 1, width: "100%" }}>
+      <div className="resp-page-pad" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 32px 80px", flex: 1, width: "100%" }}>
         <div
           style={{
             display: "flex",

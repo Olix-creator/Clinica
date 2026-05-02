@@ -16,8 +16,9 @@ export function PublicFooter() {
         background: "var(--surface)",
       }}
     >
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+      <div className="resp-page-pad" style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div
+          className="resp-stack-2"
           style={{
             display: "grid",
             gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr",

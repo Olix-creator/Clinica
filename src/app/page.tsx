@@ -82,13 +82,14 @@ function TopNav() {
       }}
     >
       <div
+        className="resp-page-pad"
         style={{
           maxWidth: 1200,
           margin: "0 auto",
           padding: "14px 32px",
           display: "flex",
           alignItems: "center",
-          gap: 32,
+          gap: 16,
         }}
       >
         <Link
@@ -126,14 +127,16 @@ function TopNav() {
             Pricing
           </Link>
         </nav>
-        <Link href="/login" className="btn ghost">
+        <div style={{ flex: 1 }} className="md:hidden" />
+        <Link href="/login" className="btn ghost hidden md:inline-flex">
           Sign in
         </Link>
-        <Link href="/search" className="btn secondary">
+        <Link href="/search" className="btn secondary hidden md:inline-flex">
           Find a clinic
         </Link>
         <Link href="/pricing?onboarding=1" className="btn primary">
-          Create clinic <ArrowRight size={15} />
+          <span className="hidden md:inline">Create clinic</span>
+          <span className="md:hidden">Sign up</span> <ArrowRight size={15} />
         </Link>
       </div>
     </div>
@@ -142,8 +145,12 @@ function TopNav() {
 
 function Hero() {
   return (
-    <section style={{ padding: "80px 32px 40px", maxWidth: 1200, margin: "0 auto" }}>
+    <section
+      className="resp-page-pad resp-page-pad-y-sm"
+      style={{ padding: "80px 32px 40px", maxWidth: 1200, margin: "0 auto" }}
+    >
       <div
+        className="resp-stack-2"
         style={{
           display: "grid",
           gridTemplateColumns: "1.05fr 1fr",
@@ -181,7 +188,10 @@ function Hero() {
             </span>
             Availability sync across doctors is live
           </div>
-          <h1 className="t-h1" style={{ margin: 0, fontSize: 56, lineHeight: 1.05 }}>
+          <h1
+            className="t-h1 resp-h1"
+            style={{ margin: 0, fontSize: 56, lineHeight: 1.05 }}
+          >
             Manage your clinic smarter.
             <br />
             <span style={{ color: "var(--text-muted)" }}>Book appointments easily.</span>
@@ -242,7 +252,9 @@ function Hero() {
             ))}
           </div>
         </div>
-        <HeroVisual />
+        <div className="resp-hide-mobile">
+          <HeroVisual />
+        </div>
       </div>
     </section>
   );
@@ -496,7 +508,7 @@ function TrustStrip() {
 
 function ProblemSolution() {
   return (
-    <section style={{ padding: "100px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <section className="resp-page-pad resp-page-pad-y-sm" style={{ padding: "100px 32px", maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 56 }}>
         <div className="t-eyebrow">The problem</div>
         <h2
@@ -506,7 +518,7 @@ function ProblemSolution() {
           Scheduling shouldn&apos;t be the hardest part of care.
         </h2>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div className="resp-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <div className="card" style={{ padding: 36, background: "var(--bg-muted)" }}>
           <div
             style={{
@@ -602,7 +614,7 @@ function ForWho() {
     <section
       style={{ padding: "40px 32px 100px", maxWidth: 1200, margin: "0 auto" }}
     >
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div className="resp-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <FeatureCard
           badge="For patients"
           title="Find care in under 30 seconds."
@@ -748,6 +760,7 @@ function HowItWorks() {
           </Link>
         </div>
         <div
+          className="resp-stack-2"
           style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}
         >
           {steps.map((step) => (
@@ -802,7 +815,7 @@ function HowItWorks() {
 
 function PricingPeek() {
   return (
-    <section style={{ padding: "100px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <section className="resp-page-pad resp-page-pad-y-sm" style={{ padding: "100px 32px", maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ textAlign: "center", marginBottom: 48 }}>
         <div className="t-eyebrow">Pricing</div>
         <h2 className="t-h2" style={{ marginTop: 10 }}>
@@ -816,6 +829,7 @@ function PricingPeek() {
         </p>
       </div>
       <div
+        className="resp-stack-2"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
@@ -943,9 +957,9 @@ function PricingPeekCard({
 
 function FinalCTA() {
   return (
-    <section style={{ padding: "80px 32px" }}>
+    <section className="resp-page-pad resp-page-pad-y-sm" style={{ padding: "80px 32px" }}>
       <div
-        className="card"
+        className="card resp-row-wrap"
         style={{
           maxWidth: 1100,
           margin: "0 auto",
@@ -1028,6 +1042,7 @@ function LandingFooter() {
     >
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <div
+          className="resp-stack-2"
           style={{
             display: "grid",
             gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr",

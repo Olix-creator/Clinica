@@ -112,6 +112,7 @@ export default async function PatientDetailPage({
       />
 
       <div
+        className="resp-page-pad resp-stack-2"
         style={{
           padding: "24px 32px 40px",
           display: "grid",

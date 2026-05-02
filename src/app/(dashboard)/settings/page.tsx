@@ -119,7 +119,10 @@ export default async function SettingsPage() {
         title="Settings"
         subtitle="Clinic profile, hours, and team"
       />
-      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in" style={{ padding: "24px 32px 60px" }}>
+      <div
+        className="max-w-4xl mx-auto space-y-6 animate-fade-in resp-page-pad"
+        style={{ padding: "24px 32px 60px" }}
+      >
 
       {/* Account card */}
       <section className="bg-surface-container-low rounded-3xl p-6 sm:p-8 space-y-6">

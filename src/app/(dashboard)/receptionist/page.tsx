@@ -106,6 +106,7 @@ export default async function ReceptionistPage({
       />
 
       <div
+        className="resp-page-pad"
         style={{
           padding: "24px 32px 40px",
           display: "flex",

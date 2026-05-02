@@ -526,3 +526,84 @@ hr.sep { border: 0; border-top: 1px solid var(--outline-variant); margin: 0; }
 @keyframes anim-slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 .anim-fade  { animation: anim-fadeIn .24s ease both; }
 .anim-slide { animation: anim-slideUp .3s cubic-bezier(.2,.7,.2,1) both; }
+
+/* ========================================================================
+   Mobile responsiveness — `.responsive-*` utilities that flip layout
+   below 768px. Pages opt in by adding the class to inline-styled
+   containers; the utility's `!important` overrides the inline values
+   without forcing every page to be rewritten in className-only form.
+
+   - .resp-page-pad     →   page-level container padding (32px → 20px)
+   - .resp-stack-2      →   2-col grid → 1-col stack
+   - .resp-h1           →   hero h1 (56-44px → 32px)
+   - .resp-h2           →   section h2 (30px → 24px)
+   - .resp-stack-3      →   3-col → 1-col stack (fallback for stat cards
+                            already use auto-fit, only used when not)
+   - .resp-hide-mobile  →   hide entirely below 768px (floating visuals)
+   - .resp-row-wrap     →   flex row that allows wrapping with sane gap
+   ======================================================================== */
+
+@media (max-width: 768px) {
+  .resp-page-pad     { padding-left: 16px !important; padding-right: 16px !important; }
+  .resp-page-pad-y-sm { padding-top: 32px !important; padding-bottom: 32px !important; }
+  .resp-stack-2      { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .resp-stack-3      { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .resp-h1           { font-size: 32px !important; line-height: 1.15 !important; }
+  .resp-h2           { font-size: 22px !important; }
+  .resp-hide-mobile  { display: none !important; }
+  .resp-row-wrap     { flex-wrap: wrap !important; gap: 8px !important; }
+  .resp-full-width   { width: 100% !important; }
+
+  /* Force the inline 1200px max-width containers to actually use the
+     full viewport (the inline style sets max-width which is fine, but
+     we also reduce the side padding). */
+  body { font-size: 14px; }
+
+  /* Form rows that were declared as horizontal flex with dividers stack
+     into vertical sections. The "Search clinic" pill bar uses this. */
+  .resp-search-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0 !important;
+    padding: 6px !important;
+  }
+  .resp-search-bar > div {
+    width: 100% !important;
+    flex: none !important;
+  }
+  /* Hide the vertical separators between the 3 search inputs */
+  .resp-search-bar > div[style*="height: 24px"] {
+    display: none !important;
+  }
+  .resp-search-bar > button {
+    width: 100% !important;
+    margin-top: 4px !important;
+  }
+
+  /* Make the auth split-screen drop the right visual rail entirely
+     and fill the form column. */
+  .resp-auth-form {
+    padding: 24px 16px !important;
+  }
+
+  /* Booking panel: when sticky on desktop, normal flow on mobile */
+  .resp-no-sticky {
+    position: static !important;
+    top: auto !important;
+  }
+
+  /* /clinic/[id] hero meta line */
+  .resp-hero-actions {
+    width: 100% !important;
+    justify-content: stretch !important;
+  }
+  .resp-hero-actions > * {
+    flex: 1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .resp-h1 { font-size: 28px !important; }
+  .resp-page-pad { padding-left: 12px !important; padding-right: 12px !important; }
+}
+

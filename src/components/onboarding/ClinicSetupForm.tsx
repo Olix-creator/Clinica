@@ -156,7 +156,7 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
           <p className="t-body" style={{ marginBottom: 32 }}>
             Both unlock the full product. Premium removes limits.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="resp-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {[
               { v: "free" as const, t: "Free trial", p: "€0", d: "30 days or 50 appointments" },
               { v: "premium" as const, t: "Premium", p: "€12/mo", d: "Unlimited everything" },
@@ -243,7 +243,7 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
                 placeholder="e.g. Clinique El Djazair"
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="resp-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
                 <label className="field-label">Specialty</label>
                 <select
@@ -278,7 +278,7 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
                 placeholder="Street, district"
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="resp-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
                 <label className="field-label">Latitude (optional)</label>
                 <input

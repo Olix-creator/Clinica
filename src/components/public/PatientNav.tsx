@@ -47,13 +47,14 @@ export async function PatientNav() {
       }}
     >
       <div
+        className="resp-page-pad"
         style={{
           maxWidth: 1200,
           margin: "0 auto",
           padding: "14px 32px",
           display: "flex",
           alignItems: "center",
-          gap: 32,
+          gap: 16,
         }}
       >
         <Link

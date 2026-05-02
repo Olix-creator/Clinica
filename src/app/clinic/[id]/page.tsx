@@ -109,7 +109,7 @@ export default async function ClinicPage({
           borderBottom: "1px solid var(--outline-variant)",
         }}
       >
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 32px" }}>
+        <div className="resp-page-pad" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 32px" }}>
           {/* Breadcrumb */}
           <div
             style={{
@@ -119,6 +119,7 @@ export default async function ClinicPage({
               fontSize: 13,
               color: "var(--text-subtle)",
               marginBottom: 20,
+              flexWrap: "wrap",
             }}
           >
             <Link href="/search" style={{ color: "inherit", textDecoration: "none" }}>
@@ -131,6 +132,7 @@ export default async function ClinicPage({
           </div>
 
           <div
+            className="resp-stack-2"
             style={{
               display: "grid",
               gridTemplateColumns: "1.2fr 0.8fr",
@@ -158,7 +160,7 @@ export default async function ClinicPage({
                   </span>
                 ) : null}
               </div>
-              <h1 className="t-h1" style={{ margin: 0, fontSize: 42 }}>
+              <h1 className="t-h1 resp-h1" style={{ margin: 0, fontSize: 42 }}>
                 {clinic.name}
               </h1>
               <div
@@ -219,7 +221,7 @@ export default async function ClinicPage({
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <div className="resp-hero-actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" className="btn secondary" disabled>
                 <Heart size={15} /> Save
               </button>
@@ -233,6 +235,7 @@ export default async function ClinicPage({
 
       {/* Body */}
       <div
+        className="resp-page-pad resp-stack-2"
         style={{
           maxWidth: 1200,
           margin: "0 auto",
@@ -342,7 +345,10 @@ export default async function ClinicPage({
         </div>
 
         {/* Sticky right rail */}
-        <aside style={{ position: "sticky", top: 96, alignSelf: "start" }}>
+        <aside
+          className="resp-no-sticky"
+          style={{ position: "sticky", top: 96, alignSelf: "start" }}
+        >
           <ClinicBookingPanel
             clinicId={clinic.id}
             clinicName={clinic.name}

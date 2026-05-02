@@ -21,6 +21,7 @@ export default async function AuthLayout({
 
   return (
     <div
+      className="resp-stack-2"
       style={{
         minHeight: "100vh",
         display: "grid",
@@ -29,6 +30,7 @@ export default async function AuthLayout({
     >
       {/* Left: form column */}
       <div
+        className="resp-auth-form"
         style={{
           padding: "40px 64px",
           display: "flex",

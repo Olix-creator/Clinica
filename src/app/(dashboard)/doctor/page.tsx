@@ -175,6 +175,7 @@ export default async function DoctorPage() {
       />
 
       <div
+        className="resp-page-pad"
         style={{
           padding: "24px 32px 40px",
           display: "flex",
@@ -239,7 +240,7 @@ export default async function DoctorPage() {
             gridTemplateColumns: "1.6fr 1fr",
             gap: 20,
           }}
-          className="lg-grid"
+          className="lg-grid resp-stack-2"
         >
           {/* Today's schedule */}
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>

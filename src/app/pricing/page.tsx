@@ -67,6 +67,7 @@ export default async function PricingPage({
 
       {/* Hero */}
       <section
+        className="resp-page-pad resp-page-pad-y-sm"
         style={{
           padding: "80px 32px 60px",
           maxWidth: 1100,
@@ -75,7 +76,7 @@ export default async function PricingPage({
         }}
       >
         <div className="t-eyebrow">Pricing</div>
-        <h1 className="t-h1" style={{ fontSize: 48, marginTop: 12 }}>
+        <h1 className="t-h1 resp-h1" style={{ fontSize: 48, marginTop: 12 }}>
           {isOnboarding
             ? "Pick a plan to finish setting up your clinic."
             : "Simple pricing for every clinic."}
@@ -90,9 +91,11 @@ export default async function PricingPage({
 
       {/* Cards */}
       <section
+        className="resp-page-pad"
         style={{ padding: "0 32px 60px", maxWidth: 900, margin: "0 auto" }}
       >
         <div
+          className="resp-stack-2"
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
         >
           {/* Free trial */}
@@ -148,6 +151,7 @@ export default async function PricingPage({
 
       {/* FAQ */}
       <section
+        className="resp-page-pad"
         style={{ padding: "40px 32px 100px", maxWidth: 900, margin: "0 auto" }}
       >
         <h2 className="t-h3" style={{ textAlign: "center", marginBottom: 32 }}>

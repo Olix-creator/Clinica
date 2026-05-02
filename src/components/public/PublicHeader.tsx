@@ -25,13 +25,14 @@ export async function PublicHeader() {
       }}
     >
       <div
+        className="resp-page-pad"
         style={{
           maxWidth: 1200,
           margin: "0 auto",
           padding: "14px 32px",
           display: "flex",
           alignItems: "center",
-          gap: 24,
+          gap: 12,
         }}
       >
         <Link

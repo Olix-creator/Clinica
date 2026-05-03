@@ -28,8 +28,6 @@ type FormState = {
   specialty: string;
   city: string;
   address: string;
-  latitude: string;
-  longitude: string;
   phone: string;
   bio: string;
   sinceYear: string;
@@ -56,8 +54,6 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
     specialty: "General Practice",
     city: "Algiers",
     address: "",
-    latitude: "",
-    longitude: "",
     phone: "",
     bio: "",
     sinceYear: "",
@@ -91,8 +87,6 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
     fd.set("name", form.name);
     fd.set("phone", form.phone);
     fd.set("address", form.address);
-    fd.set("latitude", form.latitude);
-    fd.set("longitude", form.longitude);
     fd.set("specialty", form.specialty);
     fd.set("city", form.city);
     fd.set("description", form.bio);
@@ -294,26 +288,6 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
                 placeholder="Street, district"
               />
             </div>
-            <div className="resp-stack-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div>
-                <label className="field-label">Latitude (optional)</label>
-                <input
-                  className="input"
-                  value={form.latitude}
-                  onChange={(e) => update("latitude", e.target.value)}
-                  placeholder="36.7538"
-                />
-              </div>
-              <div>
-                <label className="field-label">Longitude (optional)</label>
-                <input
-                  className="input"
-                  value={form.longitude}
-                  onChange={(e) => update("longitude", e.target.value)}
-                  placeholder="3.0588"
-                />
-              </div>
-            </div>
             <div>
               <label className="field-label">Phone</label>
               <input
@@ -397,12 +371,6 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
                 ["Specialty", form.specialty],
                 ["City", form.city],
                 ["Address", form.address || "—"],
-                [
-                  "Coordinates",
-                  form.latitude && form.longitude
-                    ? `${form.latitude}, ${form.longitude}`
-                    : "Auto from address",
-                ],
                 ["Phone", form.phone || "—"],
                 ["Description", form.bio || "Not set"],
                 ["Open since", form.sinceYear || "Not set"],

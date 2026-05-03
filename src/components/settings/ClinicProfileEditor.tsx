@@ -217,35 +217,6 @@ export function ClinicProfileEditor({ clinic }: { clinic: EditableClinic }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-[11px] uppercase tracking-[0.16em] text-on-surface-variant font-semibold">
-                  Latitude (optional)
-                </label>
-                <input
-                  name="latitude"
-                  type="number"
-                  step="any"
-                  defaultValue={clinic.latitude ?? ""}
-                  className={INPUT}
-                  disabled={pending}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] uppercase tracking-[0.16em] text-on-surface-variant font-semibold">
-                  Longitude (optional)
-                </label>
-                <input
-                  name="longitude"
-                  type="number"
-                  step="any"
-                  defaultValue={clinic.longitude ?? ""}
-                  className={INPUT}
-                  disabled={pending}
-                />
-              </div>
-            </div>
-
             <div className="space-y-1.5">
               <label className="text-[11px] uppercase tracking-[0.16em] text-on-surface-variant font-semibold">
                 Address

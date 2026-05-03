@@ -20,8 +20,10 @@ import {
   type EditableClinic,
 } from "@/components/settings/ClinicProfileEditor";
 import { DeleteClinicButton } from "@/components/settings/DeleteClinicButton";
+import { DoctorProfileEditor } from "@/components/settings/DoctorProfileEditor";
 import { DashTopbar } from "@/components/layout/DashTopbar";
 import SignOutButton from "@/components/layout/SignOutButton";
+import { ContactSupportButton } from "@/components/support/ContactSupportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +98,7 @@ export default async function SettingsPage() {
     const { data: rows } = await supabase
       .from("clinics")
       .select(
-        "id, name, phone, address, city, specialty, description, latitude, longitude, status, plan_type, trial_end_date, monthly_appointments_count, created_by",
+        "id, name, phone, address, city, specialty, description, since_year, trust_reason, latitude, longitude, status, plan_type, trial_end_date, monthly_appointments_count, created_by",
       )
       .in("id", ownedClinicIds);
     editableClinics = (rows ?? []) as (EditableClinic & {
@@ -159,6 +161,34 @@ export default async function SettingsPage() {
           )}
         </div>
       </section>
+
+      {/* Doctor profile — doctor-only */}
+      {doctor && profile.role === "doctor" && (
+        <section className="bg-surface-container-low rounded-3xl p-6 sm:p-8 space-y-4">
+          <div className="flex items-start gap-3">
+            <span className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center flex-shrink-0">
+              <User className="w-4 h-4" />
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">Doctor profile</h2>
+              <p className="text-sm text-on-surface-variant">
+                Specialty, diploma, and experience shown to patients.
+              </p>
+            </div>
+          </div>
+          <DoctorProfileEditor
+            doctor={{
+              id: doctor.id,
+              name: doctor.name,
+              specialty: doctor.specialty,
+              diploma: doctor.diploma,
+              since_year: doctor.since_year,
+              description: doctor.description,
+            }}
+            initialFullName={profile.full_name ?? ""}
+          />
+        </section>
+      )}
 
       {/* Availability — doctor-only */}
       {doctor && (
@@ -265,6 +295,23 @@ export default async function SettingsPage() {
           </ul>
         </section>
       )}
+
+      {/* Support — opens prefilled mailto with the operator's details. */}
+      <section className="bg-surface-container-low rounded-3xl p-6 sm:p-8 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Need help?</h2>
+          <p className="text-sm text-on-surface-variant">
+            Email our team. We answer within one business day.
+          </p>
+        </div>
+        <ContactSupportButton
+          clinicName={editableClinics[0]?.name ?? null}
+          userName={profile.full_name}
+          email={profile.email}
+          phone={phone}
+          variant="secondary"
+        />
+      </section>
 
       {/* Sign out */}
       <section className="bg-surface-container-low rounded-3xl p-6 sm:p-8 flex items-center justify-between flex-wrap gap-3">

@@ -256,7 +256,49 @@ export default async function ClinicPage({
               {clinic.description ??
                 `Learn more about ${clinic.name} and book an appointment online.`}
             </p>
+            {clinic.since_year ? (
+              <p
+                className="t-small"
+                style={{ marginTop: 12, color: "var(--text-subtle)" }}
+              >
+                Caring for patients since{" "}
+                <span style={{ color: "var(--on-surface)", fontWeight: 600 }}>
+                  {clinic.since_year}
+                </span>
+                {" · "}
+                {Math.max(0, new Date().getFullYear() - clinic.since_year)}{" "}
+                years
+              </p>
+            ) : null}
           </section>
+
+          {clinic.trust_reason ? (
+            <section
+              className="card"
+              style={{
+                padding: 22,
+                background: "var(--primary-50)",
+                border: "1px solid var(--primary-100)",
+              }}
+            >
+              <p
+                className="t-eyebrow"
+                style={{ marginBottom: 8 }}
+              >
+                Why patients choose us
+              </p>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "var(--on-surface)",
+                  lineHeight: 1.65,
+                  margin: 0,
+                }}
+              >
+                {clinic.trust_reason}
+              </p>
+            </section>
+          ) : null}
 
           <section>
             <h2 className="t-h3" style={{ marginBottom: 16 }}>
@@ -272,6 +314,10 @@ export default async function ClinicPage({
                   // Doctor card "Book" anchor pre-fills the inline panel via
                   // `?doctor=…` so the user lands ready-to-pick-time.
                   const docHref = `?doctor=${d.id}#book`;
+                  const yearsExp =
+                    d.sinceYear && d.sinceYear > 0
+                      ? Math.max(0, new Date().getFullYear() - d.sinceYear)
+                      : null;
                   return (
                     <div
                       key={d.id}
@@ -279,7 +325,7 @@ export default async function ClinicPage({
                       style={{
                         padding: 18,
                         display: "flex",
-                        alignItems: "center",
+                        alignItems: "flex-start",
                         gap: 16,
                       }}
                     >
@@ -301,9 +347,37 @@ export default async function ClinicPage({
                         </div>
                         <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
                           {d.specialty ?? clinic.specialty ?? "General Practice"}
+                          {yearsExp !== null ? ` · ${yearsExp} yrs` : ""}
                         </div>
+                        {d.diploma ? (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "var(--text-subtle)",
+                              marginTop: 4,
+                            }}
+                          >
+                            {d.diploma}
+                          </div>
+                        ) : null}
+                        {d.description ? (
+                          <p
+                            style={{
+                              fontSize: 13,
+                              color: "var(--text-muted)",
+                              lineHeight: 1.5,
+                              margin: "8px 0 0",
+                            }}
+                          >
+                            {d.description}
+                          </p>
+                        ) : null}
                       </div>
-                      <a href={docHref} className="btn secondary sm">
+                      <a
+                        href={docHref}
+                        className="btn secondary sm"
+                        style={{ marginTop: 4 }}
+                      >
                         Book
                       </a>
                     </div>

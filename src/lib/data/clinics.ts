@@ -13,6 +13,9 @@ export type PublicDoctor = {
   id: string;
   name: string | null;
   specialty: string | null;
+  diploma: string | null;
+  sinceYear: number | null;
+  description: string | null;
 };
 
 /**
@@ -179,7 +182,7 @@ export async function listPublicDoctorsByClinic(
   const { data, error } = await supabase
     .from("doctors")
     .select(
-      "id, name, specialty, profile:profiles!doctors_profile_id_fkey(full_name)",
+      "id, name, specialty, diploma, since_year, description, profile:profiles!doctors_profile_id_fkey(full_name)",
     )
     .eq("clinic_id", clinicId);
   if (error) {
@@ -190,12 +193,18 @@ export async function listPublicDoctorsByClinic(
     id: string;
     name: string | null;
     specialty: string | null;
+    diploma: string | null;
+    since_year: number | null;
+    description: string | null;
     profile: { full_name: string | null } | null;
   };
   return ((data ?? []) as unknown as Row[]).map((r) => ({
     id: r.id,
     name: r.name ?? r.profile?.full_name ?? null,
     specialty: r.specialty,
+    diploma: r.diploma,
+    sinceYear: r.since_year,
+    description: r.description,
   }));
 }
 
@@ -249,6 +258,8 @@ export async function createClinic({
   specialty,
   city,
   description,
+  sinceYear,
+  trustReason,
   latitude,
   longitude,
   locationSource,
@@ -261,6 +272,8 @@ export async function createClinic({
   specialty?: string;
   city?: string;
   description?: string;
+  sinceYear?: number;
+  trustReason?: string;
   latitude?: number;
   longitude?: number;
   locationSource?: "map_pin" | "address_geocode" | "manual_coords";
@@ -284,6 +297,11 @@ export async function createClinic({
       specialty: specialty?.trim() || null,
       city: city?.trim() || null,
       description: description?.trim() || null,
+      since_year:
+        Number.isFinite(sinceYear) && (sinceYear as number) > 0
+          ? sinceYear
+          : null,
+      trust_reason: trustReason?.trim() || null,
       latitude: Number.isFinite(latitude) ? latitude : null,
       longitude: Number.isFinite(longitude) ? longitude : null,
       location_source: locationSource ?? null,
@@ -320,6 +338,8 @@ export async function updateClinicProfile(
     city?: string;
     specialty?: string;
     description?: string;
+    sinceYear?: number;
+    trustReason?: string;
     latitude?: number;
     longitude?: number;
     location_source?: "map_pin" | "address_geocode" | "manual_coords";
@@ -343,6 +363,11 @@ export async function updateClinicProfile(
     city: norm(patch.city),
     specialty: norm(patch.specialty),
     description: norm(patch.description),
+    since_year:
+      Number.isFinite(patch.sinceYear) && (patch.sinceYear as number) > 0
+        ? patch.sinceYear
+        : undefined,
+    trust_reason: norm(patch.trustReason),
     latitude: Number.isFinite(patch.latitude) ? patch.latitude : undefined,
     longitude: Number.isFinite(patch.longitude) ? patch.longitude : undefined,
     location_source: patch.location_source,

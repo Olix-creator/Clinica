@@ -35,15 +35,28 @@ export async function createClinicOnboardingAction(
   const specialty = String(formData.get("specialty") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const sinceYearRaw = String(formData.get("sinceYear") ?? "").trim();
+  const trustReason = String(formData.get("trustReason") ?? "").trim();
   const latitudeRaw = String(formData.get("latitude") ?? "").trim();
   const longitudeRaw = String(formData.get("longitude") ?? "").trim();
   const plan = String(formData.get("plan") ?? "free").trim();
+  const sinceYear = sinceYearRaw ? Number(sinceYearRaw) : undefined;
   const latitude = latitudeRaw ? Number(latitudeRaw) : undefined;
   const longitude = longitudeRaw ? Number(longitudeRaw) : undefined;
 
+  // PART 2 spec: every clinic must have a complete profile.
   if (!name) return { ok: false, error: "Clinic name is required" };
-  if (!phone) return { ok: false, error: "Phone is required for verification" };
-  if (!address) return { ok: false, error: "Address is required for verification" };
+  if (!specialty) return { ok: false, error: "Specialty is required" };
+  if (!phone) return { ok: false, error: "Phone is required" };
+  if (!city) return { ok: false, error: "City is required" };
+  if (!address) return { ok: false, error: "Address is required" };
+  if (!description) return { ok: false, error: "Description is required" };
+  if (!sinceYear || !Number.isFinite(sinceYear) || sinceYear < 1800 || sinceYear > 2100) {
+    return { ok: false, error: "Please enter a valid year the clinic opened" };
+  }
+  if (!trustReason) {
+    return { ok: false, error: "Tell patients why they should trust your clinic" };
+  }
   if (latitude !== undefined && Number.isFinite(latitude) && (latitude < -90 || latitude > 90)) {
     return { ok: false, error: "Latitude must be between -90 and 90" };
   }
@@ -58,9 +71,11 @@ export async function createClinicOnboardingAction(
     name,
     phone,
     address,
-    specialty: specialty || undefined,
-    city: city || undefined,
-    description: description || undefined,
+    specialty,
+    city,
+    description,
+    sinceYear,
+    trustReason,
     latitude: hasManualCoords ? latitude : geocoded?.latitude,
     longitude: hasManualCoords ? longitude : geocoded?.longitude,
     locationSource: hasManualCoords ? "manual_coords" : geocoded?.locationSource,

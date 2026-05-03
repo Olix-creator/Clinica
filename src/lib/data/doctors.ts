@@ -91,19 +91,68 @@ export async function updateDoctorProfile({
   doctorId,
   name,
   specialty,
+  diploma,
+  sinceYear,
+  description,
 }: {
   doctorId: string;
   name?: string;
   specialty?: string;
+  diploma?: string;
+  sinceYear?: number;
+  description?: string;
 }): Promise<{ error: string | null }> {
   const supabase = await createClient();
-  const patch: { name?: string | null; specialty?: string | null } = {};
+  const patch: {
+    name?: string | null;
+    specialty?: string | null;
+    diploma?: string | null;
+    since_year?: number | null;
+    description?: string | null;
+  } = {};
   if (name !== undefined) patch.name = name.trim() || null;
   if (specialty !== undefined) patch.specialty = specialty.trim() || null;
-  const { error } = await supabase.from("doctors").update(patch).eq("id", doctorId);
+  if (diploma !== undefined) patch.diploma = diploma.trim() || null;
+  if (sinceYear !== undefined) {
+    patch.since_year =
+      Number.isFinite(sinceYear) && sinceYear > 0 ? sinceYear : null;
+  }
+  if (description !== undefined)
+    patch.description = description.trim() || null;
+  const { error } = await supabase
+    .from("doctors")
+    .update(patch)
+    .eq("id", doctorId);
   if (error) {
     console.error("[clinica] updateDoctorProfile:", error.message);
     return { error: error.message };
   }
   return { error: null };
+}
+
+/**
+ * True iff the doctor has all the required-by-policy fields filled in.
+ *
+ * The dashboard layout uses this to gate access: a doctor whose row
+ * exists but is missing any of {specialty, diploma, since_year} is
+ * bounced to /onboarding/doctor before they can see /doctor or any
+ * other authenticated page. `description` is intentionally optional.
+ *
+ * Doctors without a `doctors` row at all (newly-signed-up doctors who
+ * haven't been attached to a clinic yet) are NOT treated as
+ * incomplete — they don't have a row to fill out, the empty-state on
+ * /doctor handles that case.
+ */
+export function isDoctorProfileComplete(doctor: Doctor | null): boolean {
+  if (!doctor) return true;
+  if (!doctor.specialty || !doctor.specialty.trim()) return false;
+  if (!doctor.diploma || !doctor.diploma.trim()) return false;
+  if (
+    doctor.since_year == null ||
+    !Number.isFinite(doctor.since_year) ||
+    doctor.since_year <= 0
+  ) {
+    return false;
+  }
+  return true;
 }

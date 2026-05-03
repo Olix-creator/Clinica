@@ -5,6 +5,7 @@ import { PublicHeader } from "@/components/public/PublicHeader";
 import { PublicFooter } from "@/components/public/PublicFooter";
 import { PricingFAQ } from "@/components/pricing/PricingFAQ";
 import { PremiumEnquiryButton } from "@/components/pricing/PremiumEnquiryButton";
+import { ContactSupportButton } from "@/components/support/ContactSupportButton";
 
 export const metadata = {
   title: "Pricing — Clinica",
@@ -47,14 +48,16 @@ export default async function PricingPage({
 
   let ownerName: string | null = null;
   let ownerEmail: string | null = null;
+  let ownerPhone: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, email")
+      .select("full_name, email, phone")
       .eq("id", user.id)
       .maybeSingle();
     ownerName = profile?.full_name ?? null;
     ownerEmail = profile?.email ?? user.email ?? null;
+    ownerPhone = profile?.phone ?? null;
   }
 
   const freeHref = user
@@ -142,9 +145,45 @@ export default async function PricingPage({
               <PremiumEnquiryButton
                 ownerName={ownerName}
                 ownerEmail={ownerEmail}
+                ownerPhone={ownerPhone}
                 label={isOnboarding ? "Go Premium" : "Go premium"}
               />
             }
+          />
+        </div>
+      </section>
+
+      {/* Need help / Contact support */}
+      <section
+        className="resp-page-pad"
+        style={{
+          padding: "0 32px 32px",
+          maxWidth: 900,
+          margin: "0 auto",
+        }}
+      >
+        <div
+          className="card"
+          style={{
+            padding: 22,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Have a question?</div>
+            <p className="t-small" style={{ marginTop: 4, lineHeight: 1.5 }}>
+              We answer support emails within one business day.
+            </p>
+          </div>
+          <ContactSupportButton
+            userName={ownerName}
+            email={ownerEmail}
+            phone={ownerPhone}
+            variant="secondary"
           />
         </div>
       </section>

@@ -2,7 +2,7 @@
 
 import { Crown } from "lucide-react";
 
-const PREMIUM_EMAIL = "hello@meddiscover.app";
+const PREMIUM_EMAIL = "moumen0829@gmail.com";
 
 /**
  * "Go Premium" button. Opens the default mail client with a prefilled
@@ -15,33 +15,36 @@ const PREMIUM_EMAIL = "hello@meddiscover.app";
 export function PremiumEnquiryButton({
   ownerName,
   ownerEmail,
+  ownerPhone,
   clinicName,
   label = "Go Premium",
 }: {
   ownerName?: string | null;
   ownerEmail?: string | null;
+  ownerPhone?: string | null;
   clinicName?: string | null;
   label?: string;
 }) {
   function buildHref() {
-    const subject = clinicName
-      ? `Premium upgrade request — ${clinicName}`
-      : "Premium upgrade request";
+    const subject = "Clinic Request - Support / Subscription";
 
     const lines = [
-      "Hi MedDiscover team,",
+      "Hi Clinica team,",
       "",
       `I'd like to upgrade ${clinicName ? `"${clinicName}"` : "my clinic"} to Premium.`,
       "",
-      "Contact details:",
-      ownerName ? `  Name:  ${ownerName}` : "  Name:  ",
-      ownerEmail ? `  Email: ${ownerEmail}` : "  Email: ",
-      clinicName ? `  Clinic: ${clinicName}` : "",
+      `  Clinic name : ${clinicName ?? ""}`,
+      `  User name   : ${ownerName ?? ""}`,
+      `  Phone       : ${ownerPhone ?? ""}`,
+      `  Email       : ${ownerEmail ?? ""}`,
       "",
       "Preferred billing cadence (monthly / yearly):",
       "",
+      "Message:",
+      "",
+      "",
       "Thanks!",
-    ].filter(Boolean);
+    ];
 
     const body = lines.join("\n");
     return `mailto:${PREMIUM_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

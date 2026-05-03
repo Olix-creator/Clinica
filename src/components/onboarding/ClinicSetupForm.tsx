@@ -32,6 +32,8 @@ type FormState = {
   longitude: string;
   phone: string;
   bio: string;
+  sinceYear: string;
+  trustReason: string;
 };
 
 /**
@@ -58,17 +60,29 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
     longitude: "",
     phone: "",
     bio: "",
+    sinceYear: "",
+    trustReason: "",
   });
 
   function update<K extends keyof FormState>(k: K, v: FormState[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
+  // Step-1 spec: ALL clinic profile fields are mandatory.
   const canNext =
     step === 0
       ? true
       : step === 1
-        ? form.name.trim() && form.address.trim() && form.phone.trim()
+        ? Boolean(
+            form.name.trim() &&
+              form.specialty.trim() &&
+              form.city.trim() &&
+              form.address.trim() &&
+              form.phone.trim() &&
+              form.bio.trim() &&
+              form.sinceYear.trim() &&
+              form.trustReason.trim(),
+          )
         : true;
 
   function submit() {
@@ -82,6 +96,8 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
     fd.set("specialty", form.specialty);
     fd.set("city", form.city);
     fd.set("description", form.bio);
+    fd.set("sinceYear", form.sinceYear);
+    fd.set("trustReason", form.trustReason);
     fd.set("plan", plan);
 
     startTransition(async () => {
@@ -320,6 +336,34 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
                 A sentence or two. Shown on your public clinic page.
               </div>
             </div>
+            <div>
+              <label className="field-label">Year clinic opened</label>
+              <input
+                className="input"
+                type="number"
+                min={1800}
+                max={new Date().getFullYear()}
+                value={form.sinceYear}
+                onChange={(e) => update("sinceYear", e.target.value)}
+                placeholder={`e.g. ${new Date().getFullYear() - 10}`}
+              />
+              <div className="field-hint">
+                When did the clinic start operating?
+              </div>
+            </div>
+            <div>
+              <label className="field-label">Why patients should trust your clinic</label>
+              <textarea
+                className="textarea"
+                rows={3}
+                value={form.trustReason}
+                onChange={(e) => update("trustReason", e.target.value)}
+                placeholder="Board-certified team, modern equipment, multilingual staff, …"
+              />
+              <div className="field-hint">
+                Shown as a "Trust" panel on your public clinic page.
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -361,6 +405,8 @@ export function ClinicSetupForm({ plan: initialPlan }: { plan: "free" | "premium
                 ],
                 ["Phone", form.phone || "—"],
                 ["Description", form.bio || "Not set"],
+                ["Open since", form.sinceYear || "Not set"],
+                ["Why trust us", form.trustReason || "Not set"],
               ] as [string, string][]
             ).map(([k, v]) => (
               <div

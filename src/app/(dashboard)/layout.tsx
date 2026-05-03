@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import { clinicMemberService } from "@/lib/services/clinicMemberService";
 import { subscriptionService } from "@/lib/services/subscriptionService";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getDoctorByProfile,
+  isDoctorProfileComplete,
+} from "@/lib/data/doctors";
 
 /**
  * Dashboard chrome — Clinica handoff design.
@@ -22,6 +27,18 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { profile } = await requireProfile();
+
+  // PART 3 spec: doctors with an incomplete profile must complete it
+  // before reaching the dashboard. Patients + receptionists pass
+  // through unchanged. Doctors WITHOUT a doctors row (newly signed up,
+  // never attached to a clinic) also pass through — they need to see
+  // the empty state on /doctor that explains how to get attached.
+  if (profile.role === "doctor") {
+    const doctor = await getDoctorByProfile(profile.id);
+    if (doctor && !isDoctorProfileComplete(doctor)) {
+      redirect("/onboarding/doctor");
+    }
+  }
 
   // Staff (doctor / receptionist) get a "home clinic" chip + usage card.
   let homeClinic: { name: string; plan: string; role: string } | null = null;

@@ -104,7 +104,7 @@ export function PublicFooter() {
               fontSize: 13,
             }}
           >
-            <Mail size={14} /> hello@clinica.health
+            <Mail size={14} /> moumen0829@gmail.com
           </div>
         </div>
       </div>

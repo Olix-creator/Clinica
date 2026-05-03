@@ -65,9 +65,11 @@ export type Database = {
           name: string
           phone: string | null
           plan_type: "free" | "premium"
+          since_year: number | null
           specialty: string | null
           status: "pending" | "approved" | "rejected"
           trial_end_date: string
+          trust_reason: string | null
         }
         Insert: {
           address?: string | null
@@ -85,9 +87,11 @@ export type Database = {
           name: string
           phone?: string | null
           plan_type?: "free" | "premium"
+          since_year?: number | null
           specialty?: string | null
           status?: "pending" | "approved" | "rejected"
           trial_end_date?: string
+          trust_reason?: string | null
         }
         Update: {
           address?: string | null
@@ -105,32 +109,43 @@ export type Database = {
           name?: string
           phone?: string | null
           plan_type?: "free" | "premium"
+          since_year?: number | null
           specialty?: string | null
           status?: "pending" | "approved" | "rejected"
           trial_end_date?: string
+          trust_reason?: string | null
         }
         Relationships: []
       }
       doctors: {
         Row: {
           clinic_id: string
+          description: string | null
+          diploma: string | null
           id: string
           name: string | null
           profile_id: string
+          since_year: number | null
           specialty: string | null
         }
         Insert: {
           clinic_id: string
+          description?: string | null
+          diploma?: string | null
           id?: string
           name?: string | null
           profile_id: string
+          since_year?: number | null
           specialty?: string | null
         }
         Update: {
           clinic_id?: string
+          description?: string | null
+          diploma?: string | null
           id?: string
           name?: string | null
           profile_id?: string
+          since_year?: number | null
           specialty?: string | null
         }
         Relationships: []

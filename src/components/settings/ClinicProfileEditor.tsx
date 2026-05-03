@@ -22,6 +22,8 @@ export type EditableClinic = {
   city: string | null;
   specialty: string | null;
   description: string | null;
+  since_year: number | null;
+  trust_reason: string | null;
   latitude: number | null;
   longitude: number | null;
   status: "pending" | "approved" | "rejected";
@@ -278,6 +280,35 @@ export function ClinicProfileEditor({ clinic }: { clinic: EditableClinic }) {
                 defaultValue={clinic.description ?? ""}
                 className={`${INPUT} leading-relaxed`}
                 disabled={pending}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-[0.16em] text-on-surface-variant font-semibold">
+                Year clinic opened
+              </label>
+              <input
+                name="sinceYear"
+                type="number"
+                min={1800}
+                max={new Date().getFullYear()}
+                defaultValue={clinic.since_year ?? ""}
+                className={INPUT}
+                disabled={pending}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-[0.16em] text-on-surface-variant font-semibold">
+                Why patients should trust your clinic
+              </label>
+              <textarea
+                name="trustReason"
+                rows={3}
+                defaultValue={clinic.trust_reason ?? ""}
+                className={`${INPUT} leading-relaxed`}
+                disabled={pending}
+                placeholder="Board-certified team, modern equipment, multilingual staff…"
               />
             </div>
 

@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { deleteClinic, updateClinicProfile } from "@/lib/data/clinics";
+import { getDoctorByProfile, updateDoctorProfile } from "@/lib/data/doctors";
 import { geocodeClinicAddress } from "@/lib/maps/geocoding";
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -23,6 +25,9 @@ export async function updateClinicProfileAction(
   const city = String(formData.get("city") ?? "");
   const specialty = String(formData.get("specialty") ?? "");
   const description = String(formData.get("description") ?? "");
+  const sinceYearRaw = String(formData.get("sinceYear") ?? "").trim();
+  const trustReason = String(formData.get("trustReason") ?? "");
+  const sinceYear = sinceYearRaw ? Number(sinceYearRaw) : undefined;
   const latitudeRaw = String(formData.get("latitude") ?? "");
   const longitudeRaw = String(formData.get("longitude") ?? "");
   const latitude = latitudeRaw.trim() ? Number(latitudeRaw) : undefined;
@@ -46,6 +51,8 @@ export async function updateClinicProfileAction(
     city,
     specialty,
     description,
+    sinceYear: Number.isFinite(sinceYear) ? sinceYear : undefined,
+    trustReason,
     latitude:
       Number.isFinite(latitude) ? latitude : (geocoded?.latitude ?? undefined),
     longitude:
@@ -95,4 +102,76 @@ export async function deleteClinicAction(formData: FormData): Promise<Result> {
   // Make /clinic/[id] return 404 for visitors who had it bookmarked.
   revalidatePath(`/clinic/${clinicId}`);
   redirect("/settings");
+}
+
+/**
+ * Doctor self-service profile update — runs from /settings.
+ *
+ * The current user's `doctors` row is resolved by `profile_id` so a
+ * doctor can never edit another doctor's row. The /onboarding/doctor
+ * action is the same code path but enforces required fields strictly;
+ * here we only re-validate what was actually submitted, so a doctor
+ * can leave description blank without erroring.
+ */
+export async function updateDoctorProfileAction(
+  formData: FormData,
+): Promise<Result> {
+  const fullName = String(formData.get("fullName") ?? "");
+  const specialty = String(formData.get("specialty") ?? "");
+  const diploma = String(formData.get("diploma") ?? "");
+  const sinceYearRaw = String(formData.get("sinceYear") ?? "").trim();
+  const description = String(formData.get("description") ?? "");
+  const sinceYear = sinceYearRaw ? Number(sinceYearRaw) : undefined;
+
+  if (sinceYear !== undefined) {
+    if (
+      !Number.isFinite(sinceYear) ||
+      sinceYear < 1900 ||
+      sinceYear > 2100
+    ) {
+      return { ok: false, error: "Please enter a valid year" };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: "Not authenticated" };
+
+  const trimmedName = fullName.trim();
+  if (trimmedName) {
+    const { error: profileErr } = await supabase
+      .from("profiles")
+      .update({ full_name: trimmedName })
+      .eq("id", userData.user.id);
+    if (profileErr) {
+      console.error("[clinica] doctor settings name update:", profileErr.message);
+      return { ok: false, error: profileErr.message };
+    }
+  }
+
+  const doctor = await getDoctorByProfile(userData.user.id);
+  if (!doctor) {
+    // No doctors row yet — nothing to update besides the name we
+    // already saved on the profile. Still return ok so the toast fires.
+    revalidatePath("/settings");
+    revalidatePath("/doctor");
+    return { ok: true };
+  }
+
+  const { error } = await updateDoctorProfile({
+    doctorId: doctor.id,
+    name: trimmedName || undefined,
+    specialty: specialty || undefined,
+    diploma: diploma || undefined,
+    sinceYear,
+    description,
+  });
+  if (error) return { ok: false, error };
+
+  revalidatePath("/settings");
+  revalidatePath("/doctor");
+  if (doctor.clinic_id) {
+    revalidatePath(`/clinic/${doctor.clinic_id}`);
+  }
+  return { ok: true };
 }
